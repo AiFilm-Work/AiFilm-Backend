@@ -1,0 +1,7 @@
+spring:
+  application:
+    name: aifilm-api
+  datasource:
+    url: jdbc:h2:mem:aifilm-api
+  flyway:
+    enabled: false

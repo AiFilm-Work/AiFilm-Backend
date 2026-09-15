@@ -1,0 +1,24 @@
+// infra: domain의 Repository/interface를 구현하는 외부 인프라 모듈 (JPA, MySQL, Flyway 등).
+bootJar {
+	enabled = false
+}
+
+jar {
+	enabled = true
+	archiveClassifier = ''
+}
+
+dependencies {
+	api project(':common')
+	api project(':domain')
+
+	// api/worker가 @EntityScan, @EnableJpaRepositories 등을 컴파일 시 참조해야 하므로 api로 노출
+	api 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.flywaydb:flyway-mysql'
+	runtimeOnly 'com.mysql:mysql-connector-j'
+	// 실제 MySQL/Flyway 연동 전까지 api/worker가 독립 실행될 수 있도록 임시 인메모리 DB 제공
+	runtimeOnly 'com.h2database:h2'
+
+	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
+	testImplementation 'org.springframework.boot:spring-boot-starter-flyway-test'
+}

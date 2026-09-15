@@ -1,0 +1,18 @@
+// worker: 백그라운드 작업 전용 독립 실행 Spring Boot 애플리케이션. api에는 절대 의존하지 않는다.
+bootJar {
+	enabled = true
+}
+
+jar {
+	enabled = false
+}
+
+dependencies {
+	implementation project(':common')
+	implementation project(':domain')
+	implementation project(':infra')
+
+	implementation 'org.springframework.boot:spring-boot-starter'
+
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
