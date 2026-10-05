@@ -4,9 +4,13 @@ import lombok.Getter;
 
 import org.springframework.http.HttpStatus;
 
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+
 import com.aifilm.common.error.ErrorReason;
 
+// Jackson 3은 기본으로 필드를 알파벳순으로 정렬하므로 응답 필드 순서를 고정한다.
 @Getter
+@JsonPropertyOrder({"status", "code", "message", "data"})
 public class ApiResponse<T> {
 
 	// 프론트엔드는 code가 SUCCESS인지만 보고 성공 여부를 판단한다.
