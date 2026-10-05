@@ -37,3 +37,23 @@ openapi3 {
 		{ url = 'http://localhost:8080' }
 	]
 }
+
+tasks.named('test') {
+	def snippetsDir = layout.buildDirectory.dir('generated-snippets')
+	outputs.dir(snippetsDir)
+	// 지우거나 이름을 바꾼 테스트의 스니펫이 스펙에 남지 않도록 매번 비우고 시작한다.
+	doFirst {
+		snippetsDir.get().asFile.deleteDir()
+	}
+}
+
+// src가 아닌 빌드 산출물 위치에 복사해야 jar에 이번 빌드의 스펙이 들어가고 git에도 섞이지 않는다.
+tasks.register('copyOpenApiSpec', Copy) {
+	dependsOn 'openapi3'
+	from layout.buildDirectory.file('api-spec/openapi3.yaml')
+	into layout.buildDirectory.dir('resources/main/static/swagger-ui')
+}
+
+tasks.named('jar') {
+	dependsOn 'copyOpenApiSpec'
+}
