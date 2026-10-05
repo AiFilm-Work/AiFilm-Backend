@@ -78,6 +78,23 @@ main 클래스(`AiFilmApplication`)와 실행 설정(`application.yml`)만 둔�
 - 실행 진입점(main 클래스)은 `app`에만 둔다. `api`·`worker`에는 main 클래스와 `application.yml`을 두지 않는다.
 - JPA 스캔 같은 영역별 설정은 메인 클래스가 아니라 해당 모듈의 `@Configuration` 클래스에 둔다. 메인 클래스에 두면 슬라이스 테스트에도 강제로 적용된다.
 
+## API Response
+
+모든 API 응답은 `api` 모듈의 `ApiResponse`로 감싼다.
+
+```
+성공: {"status":200,"code":"SUCCESS","message":"요청에 성공했습니다.","data":{...}}
+실패: {"status":404,"code":"<에러 코드>","message":"<에러 메시지>","data":null}
+```
+
+- 성공은 `ApiResponse.success(data)`, 실패는 `ApiResponse.fail(errorReason)`으로 만든다.
+- 성공 응답의 `code`는 항상 `SUCCESS`다. 실패 응답의 `data`는 생략하지 않고 `null`로 내려간다.
+- 응답 본문의 `status`와 실제 HTTP 상태 코드를 일치시킨다.
+- `data`에는 Entity가 아니라 응답 DTO를 담는다.
+- 실패 사유는 `common`의 `ErrorReason`을 구현한 에러 코드 enum으로 표현하고, enum은 도메인별로 나눈다.
+- `ErrorReason`의 HTTP 상태는 `int`로 둔다. `common`은 스프링에 의존하지 않으므로 `HttpStatus`를 쓰지 않는다.
+- 응답 필드 순서(`status`, `code`, `message`, `data`)는 `@JsonPropertyOrder`로 고정되어 있다. 필드나 순서를 바꾸면 `ApiResponseSerializationTest`도 함께 수정한다.
+
 ## Code Convention
 
 - 주석은 짧은 일반 주석(`//`)으로 "무엇을, 왜"의 핵심만 적는다. Javadoc(`/** */`)과 HTML 태그는 쓰지 않는다.
