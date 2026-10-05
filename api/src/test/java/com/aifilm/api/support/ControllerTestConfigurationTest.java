@@ -11,6 +11,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.restdocs.test.autoconfigure.RestDocsMockMvcConfigurationCustomizer;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -33,6 +34,12 @@ class ControllerTestConfigurationTest {
 	@DisplayName("REST Docs 자동 설정이 적용된다")
 	void restDocsAutoConfigured() {
 		assertThat(context.getBeanNamesForType(MockMvcRestDocumentationConfigurer.class)).isNotEmpty();
+	}
+
+	@Test
+	@DisplayName("요청/응답 예시를 줄바꿈된 JSON으로 남기는 설정이 등록된다")
+	void prettyPrintConfigured() {
+		assertThat(context.getBeanNamesForType(RestDocsMockMvcConfigurationCustomizer.class)).isNotEmpty();
 	}
 
 	@Test
