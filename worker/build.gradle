@@ -1,10 +1,11 @@
-// worker: 백그라운드 작업 전용 독립 실행 Spring Boot 애플리케이션. api에는 절대 의존하지 않는다.
+// worker: 백그라운드 작업 라이브러리 모듈. main 클래스 없이 app 모듈에서 실행되며, api에는 절대 의존하지 않는다.
 bootJar {
-	enabled = true
+	enabled = false
 }
 
 jar {
-	enabled = false
+	enabled = true
+	archiveClassifier = ''
 }
 
 dependencies {

@@ -1,8 +1,7 @@
 spring:
   application:
-    name: aifilm-worker
+    name: aifilm
   datasource:
-    # api와 동일한 물리 MySQL 스키마(aifilm)를 함께 사용.
     url: jdbc:mysql://localhost:3306/${DB_NAME:aifilm}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
     username: ${DB_USERNAME:aifilm}
     password: ${DB_PASSWORD}
@@ -11,3 +10,11 @@ spring:
       ddl-auto: none
   flyway:
     enabled: false
+
+# 실행 모드 스위치. 둘 다 true면 API와 Worker가 하나의 JVM에서 함께 실행된다.
+# 분리 실행할 때는 환경변수(AIFILM_API_ENABLED, AIFILM_WORKER_ENABLED)로 덮어쓴다.
+aifilm:
+  api:
+    enabled: true
+  worker:
+    enabled: true
