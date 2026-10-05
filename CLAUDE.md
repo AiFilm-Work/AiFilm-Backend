@@ -95,6 +95,48 @@ main 클래스(`AiFilmApplication`)와 실행 설정(`application.yml`)만 둔�
 - `ErrorReason`의 HTTP 상태는 `int`로 둔다. `common`은 스프링에 의존하지 않으므로 `HttpStatus`를 쓰지 않는다.
 - 응답 필드 순서(`status`, `code`, `message`, `data`)는 `@JsonPropertyOrder`로 고정되어 있다. 필드나 순서를 바꾸면 `ApiResponseSerializationTest`도 함께 수정한다.
 
+## API Documentation
+
+API 문서는 Controller 테스트(Spring REST Docs + restdocs-api-spec)로 만들고 Swagger UI로 본다.
+
+```
+@ControllerTest 문서화 테스트 → build/generated-snippets
+→ openapi3 태스크 → build/api-spec/openapi3.yaml
+→ api jar의 static/swagger-ui/openapi3.yaml → /swagger-ui.html
+```
+
+- API를 추가하거나 바꾸면 `@ControllerTest` 문서화 테스트를 함께 작성한다. 성공 케이스와 실패 케이스(4xx)를 각각 문서화한다.
+- Controller와 DTO에 Swagger(springdoc) 어노테이션을 쓰지 않는다. 문서 내용은 테스트의 `document()`에만 적는다.
+- 응답 필드는 모두 문서화한다. 문서와 실제 응답이 다르면 테스트가 실패하며, 이를 피하려고 `relaxedResponseFields`를 쓰지 않는다.
+- 같은 method + path의 성공·실패 테스트에는 같은 `tag`, `summary`, `description`을 준다. 스펙에서 하나의 API 아래 응답 코드별로 합쳐진다.
+- `document()` 식별자는 영문 kebab-case `{리소스}-{동작}[-{실패 상황}]`로 짓고 겹치지 않게 한다. (예: `docs-sample-get`, `docs-sample-get-not-found`)
+- 테스트 소스 `com.aifilm.api.docs`의 샘플 컨트롤러와 테스트는 문서화 파이프라인 확인용이다. 첫 실제 API를 문서화할 때 삭제한다.
+
+import 규칙:
+
+| 용도 | 사용할 클래스 |
+| --- | --- |
+| `document()` | `com.epages.restdocs.apispec.MockMvcRestDocumentationWrapper` |
+| `resource()`, `parameterWithName()` | `com.epages.restdocs.apispec.ResourceDocumentation` (REST Docs의 같은 이름 메서드를 쓰지 않는다) |
+| `fieldWithPath()` | `org.springframework.restdocs.payload.PayloadDocumentation` |
+| 요청 생성 (`get()` 등) | `org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders` (`MockMvcRequestBuilders`를 쓰면 경로 변수가 문서화되지 않는다) |
+
+스펙 생성과 확인:
+
+```bash
+./gradlew :api:openapi3   # api 테스트 후 api/build/api-spec/openapi3.yaml 생성
+./gradlew :api:jar        # 생성된 스펙을 jar의 static/swagger-ui/에 포함
+```
+
+- `openapi3`는 `check`에 의존하므로 테스트가 실패하면 스펙과 jar가 만들어지지 않는다.
+- 스니펫 폴더는 테스트를 시작할 때마다 비워진다. 지운 테스트의 문서는 다음 빌드에서 사라진다.
+- 앱 실행 후 `http://localhost:8080/swagger-ui.html`에서 확인한다. IntelliJ로 실행할 때는 먼저 `./gradlew :api:jar`를 실행해야 스펙이 보인다.
+
+Swagger UI 정적 파일(`api/src/main/resources/static/swagger-ui/`):
+
+- swagger-ui dist(v5.33.1) 원본이다. 직접 고치지 않는다.
+- 원본에서 바꾼 곳은 `swagger-ui.html`(`index.html` 이름 변경, 리소스를 `/static/swagger-ui/` 절대 경로로)과 `swagger-initializer.js`의 `url` 두 군데다. 버전을 올릴 때는 dist를 통째로 바꾼 뒤 이 두 곳만 다시 고친다.
+
 ## Code Convention
 
 - 주석은 짧은 일반 주석(`//`)으로 "무엇을, 왜"의 핵심만 적는다. Javadoc(`/** */`)과 HTML 태그는 쓰지 않는다.
