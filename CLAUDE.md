@@ -22,8 +22,10 @@ Gradle Multi Module 구조를 사용한다.
 - `infra`: MySQL, Redis, 외부 API 등 인프라 연동
 - `api`: 사용자/관리자 REST API
 - `worker`: 수집, 동기화, 랭킹 집계 등 백그라운드 작업
+- `app`: api와 worker를 조립해 실행하는 유일한 실행 모듈
 
 `api`와 `worker`는 서로 직접 의존하지 않는다.
+`api`와 `worker`는 main 클래스가 없는 라이브러리이며, 실행은 `app` 모듈의 `AiFilmApplication` 하나로만 한다.
 
 ### api
 
@@ -48,6 +50,21 @@ Gradle Multi Module 구조를 사용한다.
 - Retry
 - Scheduler
 
+### app
+
+main 클래스(`AiFilmApplication`)와 실행 설정(`application.yml`)만 둔다.
+
+초기에는 API와 Worker를 하나의 JVM에서 함께 실행하며, 실행 모드는 스위치 두 개로 정한다.
+
+| 실행 모드 | `aifilm.api.enabled` | `aifilm.worker.enabled` |
+| --- | --- | --- |
+| API + Worker (기본값) | true | true |
+| API만 | true | false |
+| Worker만 | false | true |
+
+- 각 모듈의 빈은 진입 설정(`ApiModuleConfig`, `WorkerModuleConfig`)을 통해서만 등록된다.
+- `AiFilmApplication`의 `scanBasePackages`에 `com.aifilm.api`, `com.aifilm.worker`를 추가하지 않는다. 추가하면 스위치와 무관하게 두 모듈의 빈이 모두 등록된다.
+
 ## Architecture Rules
 
 - Controller에서 Repository를 직접 호출하지 않는다.
@@ -58,6 +75,13 @@ Gradle Multi Module 구조를 사용한다.
 - HTTP endpoint는 `api`에 둔다.
 - Scheduler 및 백그라운드 실행 진입점은 `worker`에 둔다.
 - Scheduler 자체에는 비즈니스 로직을 작성하지 않는다.
+- 실행 진입점(main 클래스)은 `app`에만 둔다. `api`·`worker`에는 main 클래스와 `application.yml`을 두지 않는다.
+- JPA 스캔 같은 영역별 설정은 메인 클래스가 아니라 해당 모듈의 `@Configuration` 클래스에 둔다. 메인 클래스에 두면 슬라이스 테스트에도 강제로 적용된다.
+
+## Code Convention
+
+- 주석은 짧은 일반 주석(`//`)으로 "무엇을, 왜"의 핵심만 적는다. Javadoc(`/** */`)과 HTML 태그는 쓰지 않는다.
+- 자세한 배경과 결정 이유는 커밋 본문에 남긴다.
 
 ## Database
 
@@ -99,11 +123,15 @@ Worker에서는 특히 다음을 검증한다.
 
 ```bash
 ./gradlew test
+./gradlew :app:test
 ./gradlew :api:test
 ./gradlew :worker:test
 ./gradlew :domain:test
 ./gradlew :infra:test
 ```
+
+- `app`의 테스트(`@SpringBootTest`)는 로컬 MySQL(`docker compose up -d`)과 `.env`의 DB 환경변수가 필요하다.
+- `api`의 웹 계층 테스트는 테스트 전용 설정(`ApiTestApplication`)으로 `@WebMvcTest`를 사용하며, DB 없이 실행된다.
 
 작업 완료 전 최소한 변경된 모듈의 테스트를 실행한다.
 테스트를 실행하지 못한 경우 그 사실과 이유를 명시한다.

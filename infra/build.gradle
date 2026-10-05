@@ -12,7 +12,8 @@ dependencies {
 	api project(':common')
 	api project(':domain')
 
-	// api/worker가 @EntityScan, @EnableJpaRepositories 등을 컴파일 시 참조해야 하므로 api로 노출
+	// JPA 스캔 설정(@EntityScan, @EnableJpaRepositories)은 infra의 JpaConfig가 담당한다.
+	// api로 노출하는 범위는 Entity/Repository 위치가 정해지면 다시 검토한다.
 	api 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.flywaydb:flyway-mysql'
 	runtimeOnly 'com.mysql:mysql-connector-j'

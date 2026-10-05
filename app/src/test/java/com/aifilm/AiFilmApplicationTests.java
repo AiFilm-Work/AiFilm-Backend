@@ -1,10 +1,10 @@
-package com.aifilm.api;
+package com.aifilm;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class ApiApplicationTests {
+class AiFilmApplicationTests {
 
 	@Test
 	void contextLoads() {

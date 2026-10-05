@@ -1,0 +1,17 @@
+// app: api와 worker를 조립해 하나의 JVM으로 실행하는 유일한 실행 모듈. main 클래스와 실행 설정만 둔다.
+bootJar {
+	enabled = true
+}
+
+jar {
+	enabled = false
+}
+
+dependencies {
+	implementation project(':api')
+	implementation project(':worker')
+
+	implementation 'org.springframework.boot:spring-boot-starter'
+
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
