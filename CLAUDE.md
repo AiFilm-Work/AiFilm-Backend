@@ -195,6 +195,15 @@ Worker에서는 특히 다음을 검증한다.
 작업 완료 전 최소한 변경된 모듈의 테스트를 실행한다.
 테스트를 실행하지 못한 경우 그 사실과 이유를 명시한다.
 
+## Code Review
+
+Draft가 아닌 PR이 열리면 CodeRabbit이 자동으로 리뷰한다. 설정은 루트의 `.coderabbit.yaml`에 있다.
+Draft PR은 자동 리뷰 대상이 아니며, 필요하면 PR 코멘트에 `@coderabbitai review`를 남겨 직접 요청한다.
+
+- CodeRabbit 리뷰는 참고 의견이다. 머지 필수 조건으로 쓰지 않으며, 반영 여부는 작성자가 판단한다.
+- CodeRabbit은 이 CLAUDE.md를 리뷰 기준으로 읽는다. 리뷰 기준을 바꾸려면 이 문서의 규칙을 고친다.
+- 직접 고치지 않는 파일(외부 dist, Gradle wrapper 등)은 `.coderabbit.yaml`의 `reviews.path_filters`에 `!`로 제외한다.
+
 ## Git Convention
 
 Branch:
