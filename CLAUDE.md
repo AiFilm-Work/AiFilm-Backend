@@ -197,7 +197,8 @@ Worker에서는 특히 다음을 검증한다.
 
 ## Code Review
 
-PR이 열리면 CodeRabbit이 자동으로 리뷰한다. 설정은 루트의 `.coderabbit.yaml`에 있다.
+Draft가 아닌 PR이 열리면 CodeRabbit이 자동으로 리뷰한다. 설정은 루트의 `.coderabbit.yaml`에 있다.
+Draft PR은 자동 리뷰 대상이 아니며, 필요하면 PR 코멘트에 `@coderabbitai review`를 남겨 직접 요청한다.
 
 - CodeRabbit 리뷰는 참고 의견이다. 머지 필수 조건으로 쓰지 않으며, 반영 여부는 작성자가 판단한다.
 - CodeRabbit은 이 CLAUDE.md를 리뷰 기준으로 읽는다. 리뷰 기준을 바꾸려면 이 문서의 규칙을 고친다.
