@@ -57,3 +57,9 @@ tasks.register('copyOpenApiSpec', Copy) {
 tasks.named('jar') {
 	dependsOn 'copyOpenApiSpec'
 }
+
+// copyOpenApiSpec이 build/resources/main에 쓰는 파일을 resolveMainClassName도 읽으므로 실행 순서를 명시한다.
+// dependsOn이 아니라 순서만 정해, api만 빌드할 때 문서 생성 태스크가 끼어들지 않게 한다.
+tasks.named('resolveMainClassName') {
+	mustRunAfter 'copyOpenApiSpec'
+}
