@@ -145,11 +145,17 @@ Swagger UI 정적 파일(`api/src/main/resources/static/swagger-ui/`):
 ## Database
 
 - MySQL을 사용한다.
-- 스키마 변경은 Flyway migration으로 관리한다.
+- 스키마 변경은 Flyway migration으로만 관리한다. `ddl-auto`는 모든 환경에서 `validate`다.
 - `ddl-auto=create/update`는 사용하지 않는다.
-- 운영 환경에서는 `validate`를 사용한다.
-- 이미 적용된 migration 파일은 수정하지 않는다.
-- 스키마 변경이 필요한 경우 새로운 migration 파일을 추가한다.
+
+Migration:
+
+- 위치: `infra/src/main/resources/db/migration/`
+- 파일 이름: `V{번호}__{설명}.sql` (예: `V1__create_movie.sql`, `V2__add_movie_runtime.sql`)
+  - 번호는 1부터 차례로 올린다. 설명은 영문 소문자 snake_case로 쓴다.
+- 테이블은 ERD 전체를 한 번에 만들지 않는다. 기능을 개발할 때 필요한 테이블을 마이그레이션으로 추가하고, 엔티티·리포지토리 테스트와 같은 PR에 넣는다.
+- 첫 배포 전에는 로컬에만 적용된 migration을 고쳐도 된다. 고친 뒤 `docker compose down -v`로 로컬 DB를 초기화한다.
+- 첫 배포 이후에는 이미 적용된 migration 파일을 수정하지 않는다. 스키마 변경은 새 migration 파일로 추가한다.
 
 ## Testing
 
