@@ -1,5 +1,7 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
 language: "ko-KR"
+# 리뷰와 대화의 말투. 최대 250자
+tone_instructions: "같은 팀 시니어 백엔드 개발자가 동료 PR을 보듯 존댓말로 리뷰한다. 지적마다 왜 문제인지와 대안을 짧게 쓰고, 확신이 낮으면 단정하지 말고 질문으로 남긴다. 칭찬, 이모지, 과장된 표현은 쓰지 않는다."
 
 reviews:
   # quiet: 중요한 것만 / chill: 균형 / assertive: 잔소리 많음
@@ -9,6 +11,14 @@ reviews:
   high_level_summary: true
   poem: false
   review_status: true
+  # 리뷰 중 명언/그림 출력 끄기
+  in_progress_fortune: false
+  # 1인 프로젝트라 리뷰어·라벨 추천은 필요 없다
+  suggested_reviewers: false
+  suggested_labels: false
+  # 작은 PR에서 소음이 되는 walkthrough 항목
+  sequence_diagrams: false
+  estimate_code_review_effort: false
   auto_review:
     enabled: true
     drafts: false
