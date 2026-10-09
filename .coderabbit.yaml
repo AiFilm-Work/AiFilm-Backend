@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "ko-KR"
+
+reviews:
+  # quiet: 중요한 것만 / chill: 균형 / assertive: 잔소리 많음
+  profile: "chill"
+  # 리뷰는 참고 의견이다. "Request changes"로 머지를 막지 않는다
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  auto_review:
+    enabled: true
+    drafts: false
+  path_filters:
+    # swagger-ui dist 원본. 직접 고치지 않는 파일이다
+    - "!api/src/main/resources/static/swagger-ui/**"
+    # Gradle wrapper
+    - "!gradle/wrapper/**"
+    - "!gradlew"
+    - "!gradlew.bat"
