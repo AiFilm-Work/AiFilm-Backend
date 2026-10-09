@@ -15,10 +15,10 @@ dependencies {
 	// JPA 스캔 설정(@EntityScan, @EnableJpaRepositories)은 infra의 JpaConfig가 담당한다.
 	// api로 노출하는 범위는 Entity/Repository 위치가 정해지면 다시 검토한다.
 	api 'org.springframework.boot:spring-boot-starter-data-jpa'
+	// Spring Boot 4부터 Flyway 자동 설정은 스타터로 따로 추가해야 한다. MySQL 지원은 flyway-mysql이 담당한다.
+	implementation 'org.springframework.boot:spring-boot-starter-flyway'
 	implementation 'org.flywaydb:flyway-mysql'
 	runtimeOnly 'com.mysql:mysql-connector-j'
-	// 실제 MySQL/Flyway 연동 전까지 api/worker가 독립 실행될 수 있도록 임시 인메모리 DB 제공
-	runtimeOnly 'com.h2database:h2'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-flyway-test'

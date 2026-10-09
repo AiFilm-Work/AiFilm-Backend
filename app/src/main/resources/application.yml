@@ -7,9 +7,8 @@ spring:
     password: ${DB_PASSWORD}
   jpa:
     hibernate:
-      ddl-auto: none
-  flyway:
-    enabled: false
+      # 스키마는 Flyway로만 바꾼다. 엔티티와 테이블이 다르면 시작 시 실패한다
+      ddl-auto: validate
 
 # 실행 모드 스위치. 둘 다 true면 API와 Worker가 하나의 JVM에서 함께 실행된다.
 # 분리 실행할 때는 환경변수(AIFILM_API_ENABLED, AIFILM_WORKER_ENABLED)로 덮어쓴다.
