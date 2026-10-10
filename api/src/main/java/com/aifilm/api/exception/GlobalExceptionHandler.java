@@ -66,6 +66,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	@Override
 	protected @Nullable ResponseEntity<Object> handleHandlerMethodValidationException(
 		HandlerMethodValidationException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+		// 반환값 검증 실패는 클라이언트 입력이 아니라 서버 코드 문제이므로 500으로 응답하고 필드 오류를 담지 않는다.
+		if (ex.isForReturnValue()) {
+			return respond(ex, CommonErrorCode.INTERNAL_SERVER_ERROR, null, headers, request);
+		}
 		List<FieldErrorResponse> errors = ex.getParameterValidationResults().stream()
 			.flatMap(result -> result.getResolvableErrors().stream()
 				.map(error -> new FieldErrorResponse(

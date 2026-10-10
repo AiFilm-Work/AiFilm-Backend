@@ -46,6 +46,12 @@ class ExceptionTestController {
 	public void path(@PathVariable @Positive long id) {
 	}
 
+	// 반환값 제약을 어기는 응답을 돌려줘 반환값 검증 실패를 일으킨다.
+	@GetMapping("/test/exceptions/return-value")
+	public @NotBlank String returnValue() {
+		return "";
+	}
+
 	record ExceptionTestRequest(@NotBlank String name) {
 	}
 

@@ -94,6 +94,13 @@ class GlobalExceptionHandlerTest {
 	}
 
 	@Test
+	@DisplayName("반환값 검증에 실패하면 서버 오류로 보고 500을 반환하며 필드 오류는 담지 않는다")
+	void returnValueValidation() throws Exception {
+		mockMvc.perform(get("/test/exceptions/return-value"))
+			.andExpectAll(failResponse(500, "COMMON_500_1"));
+	}
+
+	@Test
 	@DisplayName("필수 파라미터가 없으면 400과 누락된 파라미터 오류를 반환한다")
 	void missingRequestParameter() throws Exception {
 		mockMvc.perform(get("/test/exceptions/param"))
