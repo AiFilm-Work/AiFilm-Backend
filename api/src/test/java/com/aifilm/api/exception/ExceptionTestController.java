@@ -2,10 +2,16 @@ package com.aifilm.api.exception;
 
 import java.util.Map;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
+
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.aifilm.common.error.BusinessException;
@@ -26,6 +32,21 @@ class ExceptionTestController {
 
 	@PostMapping(value = "/test/exceptions/json", consumes = MediaType.APPLICATION_JSON_VALUE)
 	public void json(@RequestBody Map<String, Object> body) {
+	}
+
+	@PostMapping("/test/exceptions/body")
+	public void body(@Valid @RequestBody ExceptionTestRequest request) {
+	}
+
+	@GetMapping("/test/exceptions/param")
+	public void param(@RequestParam int count) {
+	}
+
+	@GetMapping("/test/exceptions/path/{id}")
+	public void path(@PathVariable @Positive long id) {
+	}
+
+	record ExceptionTestRequest(@NotBlank String name) {
 	}
 
 }

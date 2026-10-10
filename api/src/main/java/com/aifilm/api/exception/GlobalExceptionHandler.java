@@ -5,12 +5,18 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 
 import org.jspecify.annotations.Nullable;
+import org.springframework.beans.TypeMismatchException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import com.aifilm.api.response.ApiResponse;
@@ -26,6 +32,9 @@ import com.aifilm.common.error.HttpStatusCodes;
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
+	private static final String TYPE_MISMATCH_REASON = "형식이 올바르지 않습니다.";
+	private static final String MISSING_PARAMETER_REASON = "필수 값입니다.";
+
 	@ExceptionHandler(BusinessException.class)
 	public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException e) {
 		ErrorReason errorReason = e.getErrorReason();
@@ -39,6 +48,55 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		ErrorReason errorReason = CommonErrorCode.INTERNAL_SERVER_ERROR;
 		logException(e, errorReason);
 		return ResponseEntity.status(errorReason.getStatus()).body(ApiResponse.fail(errorReason));
+	}
+
+	// @RequestBody @Valid 검증 실패. 클래스 단위 제약 오류는 필드 대신 객체 이름으로 담는다.
+	@Override
+	protected @Nullable ResponseEntity<Object> handleMethodArgumentNotValid(
+		MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+		List<FieldErrorResponse> errors = ex.getBindingResult().getAllErrors().stream()
+			.map(error -> new FieldErrorResponse(
+				error instanceof FieldError fieldError ? fieldError.getField() : error.getObjectName(),
+				error.getDefaultMessage()))
+			.toList();
+		return respond(ex, CommonErrorCode.INVALID_INPUT_VALUE, errors, headers, request);
+	}
+
+	// @PathVariable, @RequestParam에 붙인 제약 조건 위반
+	@Override
+	protected @Nullable ResponseEntity<Object> handleHandlerMethodValidationException(
+		HandlerMethodValidationException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+		List<FieldErrorResponse> errors = ex.getParameterValidationResults().stream()
+			.flatMap(result -> result.getResolvableErrors().stream()
+				.map(error -> new FieldErrorResponse(
+					result.getMethodParameter().getParameterName(), error.getDefaultMessage())))
+			.toList();
+		return respond(ex, CommonErrorCode.INVALID_INPUT_VALUE, errors, headers, request);
+	}
+
+	// 입력값을 그대로 돌려주면 응답에 사용자 입력이 반사되므로 필드명과 고정 사유만 담는다.
+	// 필드명을 알 수 없는 경우(빈 바인딩 등)에는 errors 없이 응답한다.
+	@Override
+	protected @Nullable ResponseEntity<Object> handleTypeMismatch(
+		TypeMismatchException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+		List<FieldErrorResponse> errors = ex.getPropertyName() == null
+			? null
+			: List.of(new FieldErrorResponse(ex.getPropertyName(), TYPE_MISMATCH_REASON));
+		return respond(ex, CommonErrorCode.INVALID_INPUT_VALUE, errors, headers, request);
+	}
+
+	@Override
+	protected @Nullable ResponseEntity<Object> handleMissingServletRequestParameter(
+		MissingServletRequestParameterException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+		List<FieldErrorResponse> errors = List.of(new FieldErrorResponse(ex.getParameterName(), MISSING_PARAMETER_REASON));
+		return respond(ex, CommonErrorCode.INVALID_INPUT_VALUE, errors, headers, request);
+	}
+
+	// JSON 문법 오류 등으로 본문 자체를 읽지 못해 특정 필드를 가리킬 수 없는 경우
+	@Override
+	protected @Nullable ResponseEntity<Object> handleHttpMessageNotReadable(
+		HttpMessageNotReadableException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+		return respond(ex, CommonErrorCode.INVALID_REQUEST_BODY, null, headers, request);
 	}
 
 	// 개별 오버라이드하지 않은 스프링 MVC 예외는 모두 여기로 온다. 스프링이 만든 ProblemDetail 본문은 버리고 상태로만 매핑한다.

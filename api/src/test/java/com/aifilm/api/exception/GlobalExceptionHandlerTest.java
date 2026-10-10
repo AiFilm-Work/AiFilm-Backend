@@ -72,6 +72,69 @@ class GlobalExceptionHandlerTest {
 			.andExpect(failResponse(415, "COMMON_415_1"));
 	}
 
+	@Test
+	@DisplayName("요청 본문 @Valid 검증에 실패하면 400과 필드별 오류를 반환한다")
+	void methodArgumentNotValid() throws Exception {
+		mockMvc.perform(post("/test/exceptions/body")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"name\":\"\"}"))
+			.andExpect(validationFailResponse("COMMON_400_1"))
+			.andExpect(jsonPath("$.errors.length()").value(1))
+			.andExpect(jsonPath("$.errors[0].field").value("name"))
+			.andExpect(jsonPath("$.errors[0].reason").isNotEmpty());
+	}
+
+	@Test
+	@DisplayName("경로 변수 제약 조건을 위반하면 400과 파라미터 이름이 담긴 오류를 반환한다")
+	void handlerMethodValidation() throws Exception {
+		mockMvc.perform(get("/test/exceptions/path/{id}", 0))
+			.andExpect(validationFailResponse("COMMON_400_1"))
+			.andExpect(jsonPath("$.errors[0].field").value("id"))
+			.andExpect(jsonPath("$.errors[0].reason").isNotEmpty());
+	}
+
+	@Test
+	@DisplayName("필수 파라미터가 없으면 400과 누락된 파라미터 오류를 반환한다")
+	void missingRequestParameter() throws Exception {
+		mockMvc.perform(get("/test/exceptions/param"))
+			.andExpect(validationFailResponse("COMMON_400_1"))
+			.andExpect(jsonPath("$.errors[0].field").value("count"))
+			.andExpect(jsonPath("$.errors[0].reason").value("필수 값입니다."));
+	}
+
+	@Test
+	@DisplayName("파라미터 타입이 맞지 않으면 400을 반환하고 보낸 값은 응답에 담지 않는다")
+	void typeMismatch() throws Exception {
+		String body = mockMvc.perform(get("/test/exceptions/param").param("count", "aifilm-value"))
+			.andExpect(validationFailResponse("COMMON_400_1"))
+			.andExpect(jsonPath("$.errors[0].field").value("count"))
+			.andExpect(jsonPath("$.errors[0].reason").value("형식이 올바르지 않습니다."))
+			.andReturn()
+			.getResponse()
+			.getContentAsString(StandardCharsets.UTF_8);
+
+		assertThat(body).doesNotContain("aifilm-value");
+	}
+
+	@Test
+	@DisplayName("요청 본문 JSON을 읽을 수 없으면 400 별도 코드로 응답하고 필드 오류는 담지 않는다")
+	void httpMessageNotReadable() throws Exception {
+		mockMvc.perform(post("/test/exceptions/body")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"name\":"))
+			.andExpect(failResponse(400, "COMMON_400_2"));
+	}
+
+	// 검증 실패 응답 공통 형태: 400이고 data는 null로 포함되며, errors에 필드별 오류가 담긴다.
+	private static ResultMatcher validationFailResponse(String code) {
+		return ResultMatcher.matchAll(
+			status().isBadRequest(),
+			jsonPath("$.status").value(400),
+			jsonPath("$.code").value(code),
+			jsonPath("$.data").value(nullValue()),
+			jsonPath("$.errors").isArray());
+	}
+
 	// 실패 응답 공통 형태: 본문 status와 HTTP 상태가 같고, data는 null로 포함되며, errors는 없다.
 	private static ResultMatcher failResponse(int httpStatus, String code) {
 		return ResultMatcher.matchAll(
