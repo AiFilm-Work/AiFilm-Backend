@@ -2,6 +2,8 @@ package com.aifilm.api.response;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -27,6 +29,20 @@ class ApiResponseTest {
 		assertThat(response.getCode()).isEqualTo("TEST_404_1");
 		assertThat(response.getMessage()).isEqualTo("테스트 리소스를 찾을 수 없습니다.");
 		assertThat(response.getData()).isNull();
+		assertThat(response.getErrors()).isNull();
+	}
+
+	@Test
+	@DisplayName("fail에 필드 오류를 넘기면 errors에 담고 데이터는 비운다")
+	void failWithErrors() {
+		List<FieldErrorResponse> errors = List.of(new FieldErrorResponse("name", "필수 값입니다."));
+
+		ApiResponse<Void> response = ApiResponse.fail(TestErrorCode.INVALID, errors);
+
+		assertThat(response.getStatus()).isEqualTo(400);
+		assertThat(response.getCode()).isEqualTo("TEST_400_1");
+		assertThat(response.getData()).isNull();
+		assertThat(response.getErrors()).containsExactly(new FieldErrorResponse("name", "필수 값입니다."));
 	}
 
 }

@@ -1,5 +1,7 @@
 package com.aifilm.api.response;
 
+import java.util.List;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,6 +19,12 @@ class ApiResponseTestController {
 	public ResponseEntity<ApiResponse<Void>> fail() {
 		return ResponseEntity.status(TestErrorCode.NOT_FOUND.getStatus())
 			.body(ApiResponse.fail(TestErrorCode.NOT_FOUND));
+	}
+
+	@GetMapping("/test/api-response/fail-with-errors")
+	public ResponseEntity<ApiResponse<Void>> failWithErrors() {
+		return ResponseEntity.status(TestErrorCode.INVALID.getStatus())
+			.body(ApiResponse.fail(TestErrorCode.INVALID, List.of(new FieldErrorResponse("name", "필수 값입니다."))));
 	}
 
 }

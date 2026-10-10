@@ -85,15 +85,30 @@ main 클래스(`AiFilmApplication`)와 실행 설정(`application.yml`)만 둔�
 ```
 성공: {"status":200,"code":"SUCCESS","message":"요청에 성공했습니다.","data":{...}}
 실패: {"status":404,"code":"<에러 코드>","message":"<에러 메시지>","data":null}
+검증 실패: {"status":400,"code":"COMMON_400_1","message":"입력값이 올바르지 않습니다.","data":null,"errors":[{"field":"name","reason":"<사유>"}]}
 ```
 
-- 성공은 `ApiResponse.success(data)`, 실패는 `ApiResponse.fail(errorReason)`으로 만든다.
+- 성공은 `ApiResponse.success(data)`로 만든다. 실패 응답은 컨트롤러에서 직접 만들지 않고 예외를 던진다. (Exception Handling 참고)
 - 성공 응답의 `code`는 항상 `SUCCESS`다. 실패 응답의 `data`는 생략하지 않고 `null`로 내려간다.
+- `data`는 성공 결과만 담는다. 입력값 검증 실패의 필드별 사유는 `errors`(`field`, `reason`)에 담고, `errors`는 값이 없으면 응답에서 빠진다.
 - 응답 본문의 `status`와 실제 HTTP 상태 코드를 일치시킨다.
 - `data`에는 Entity가 아니라 응답 DTO를 담는다.
 - 실패 사유는 `common`의 `ErrorReason`을 구현한 에러 코드 enum으로 표현하고, enum은 도메인별로 나눈다.
 - `ErrorReason`의 HTTP 상태는 `int`로 둔다. `common`은 스프링에 의존하지 않으므로 `HttpStatus`를 쓰지 않는다.
-- 응답 필드 순서(`status`, `code`, `message`, `data`)는 `@JsonPropertyOrder`로 고정되어 있다. 필드나 순서를 바꾸면 `ApiResponseSerializationTest`도 함께 수정한다.
+- 응답 필드 순서(`status`, `code`, `message`, `data`, `errors`)는 `@JsonPropertyOrder`로 고정되어 있다. 필드나 순서를 바꾸면 `ApiResponseSerializationTest`도 함께 수정한다.
+
+## Exception Handling
+
+- 실패는 `common`의 `BusinessException`에 `ErrorReason`을 담아 던진다. 컨트롤러에서 `ResponseEntity`로 실패 응답을 직접 만들지 않는다.
+- 외부 API, DB 예외를 감쌀 때는 `BusinessException(errorReason, cause)`로 원인 예외를 넘긴다.
+- HTTP 응답 변환은 `api`의 `GlobalExceptionHandler`에서만 한다. `ResponseEntityExceptionHandler`를 상속하므로 스프링 MVC 예외는 따로 `@ExceptionHandler`를 만들지 않고 해당 `handleXxx`를 오버라이드한다.
+- 에러 코드는 `{도메인}_{HTTP상태}_{순번}` 형식이다. (예: `FILM_404_1`) 도메인에 속하지 않는 오류는 `CommonErrorCode`(`COMMON_*`)를 쓴다.
+- 에러 코드 enum의 HTTP 상태는 `HttpStatusCodes` 상수를 쓴다. 없는 상태는 상수부터 추가한다.
+- 입력값 검증은 컨트롤러의 `@Valid`와 파라미터 제약 어노테이션으로만 한다. 서비스에 `@Validated`를 붙이지 않는다. (`ConstraintViolationException`은 처리하지 않으므로 500이 된다)
+- 응답에 예외 메시지, 스택트레이스, 사용자가 보낸 값을 담지 않는다.
+- 로그: 4xx는 `warn` 한 줄, 5xx는 `error`와 스택트레이스.
+- 새 예외 유형을 처리하면 `GlobalExceptionHandlerTest`에 HTTP 상태와 응답 본문 검증을 추가한다.
+- 검증 실패 케이스를 문서화할 때는 `errors[].field`, `errors[].reason`도 응답 필드로 문서화한다.
 
 ## API Documentation
 
