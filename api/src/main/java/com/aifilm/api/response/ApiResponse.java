@@ -1,16 +1,19 @@
 package com.aifilm.api.response;
 
+import java.util.List;
+
 import lombok.Getter;
 
 import org.springframework.http.HttpStatus;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 import com.aifilm.common.error.ErrorReason;
 
 // Jackson 3은 기본으로 필드를 알파벳순으로 정렬하므로 응답 필드 순서를 고정한다.
 @Getter
-@JsonPropertyOrder({"status", "code", "message", "data"})
+@JsonPropertyOrder({"status", "code", "message", "data", "errors"})
 public class ApiResponse<T> {
 
 	// 프론트엔드는 code가 SUCCESS인지만 보고 성공 여부를 판단한다.
@@ -22,19 +25,29 @@ public class ApiResponse<T> {
 	private final String message;
 	private final T data;
 
-	private ApiResponse(int status, String code, String message, T data) {
+	// 검증 실패일 때만 값이 있다. data와 달리 null이면 응답에서 아예 빠진다.
+	// 클래스가 아니라 이 필드에만 붙여야 실패 응답의 data: null이 유지된다.
+	@JsonInclude(JsonInclude.Include.NON_NULL)
+	private final List<FieldErrorResponse> errors;
+
+	private ApiResponse(int status, String code, String message, T data, List<FieldErrorResponse> errors) {
 		this.status = status;
 		this.code = code;
 		this.message = message;
 		this.data = data;
+		this.errors = errors;
 	}
 
 	public static <T> ApiResponse<T> success(T data) {
-		return new ApiResponse<>(HttpStatus.OK.value(), SUCCESS_CODE, SUCCESS_MESSAGE, data);
+		return new ApiResponse<>(HttpStatus.OK.value(), SUCCESS_CODE, SUCCESS_MESSAGE, data, null);
 	}
 
 	public static <T> ApiResponse<T> fail(ErrorReason errorReason) {
-		return new ApiResponse<>(errorReason.getStatus(), errorReason.getCode(), errorReason.getMessage(), null);
+		return fail(errorReason, null);
+	}
+
+	public static <T> ApiResponse<T> fail(ErrorReason errorReason, List<FieldErrorResponse> errors) {
+		return new ApiResponse<>(errorReason.getStatus(), errorReason.getCode(), errorReason.getMessage(), null, errors);
 	}
 
 }
