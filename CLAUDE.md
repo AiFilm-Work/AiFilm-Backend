@@ -218,6 +218,15 @@ Worker에서는 특히 다음을 검증한다.
 작업 완료 전 최소한 변경된 모듈의 테스트를 실행한다.
 테스트를 실행하지 못한 경우 그 사실과 이유를 명시한다.
 
+## CI
+
+main을 대상으로 하는 PR과 main push마다 GitHub Actions가 `./gradlew build`를 실행한다. 설정은 `.github/workflows/ci.yml`에 있다.
+
+- CI는 로컬의 `./gradlew build`와 같은 명령을 돌린다. PR을 올리기 전에 로컬에서 먼저 통과시킨다. (Docker 실행 필요)
+- app 통합 테스트는 러너의 Docker에서 Testcontainers로 MySQL을 띄운다. CI에 DB나 `.env`를 따로 준비하지 않는다.
+- CI가 실패하면 Actions 실행 화면의 `test-reports` 아티팩트에서 모듈별 테스트 리포트를 내려받아 원인을 확인한다.
+- `gradlew`는 실행 권한(100755)으로 커밋되어 있어야 한다. Windows에서는 권한이 기록되지 않으므로, 권한이 빠지면 `git update-index --chmod=+x gradlew`로 맞춘다.
+
 ## Code Review
 
 Draft가 아닌 PR이 열리면 CodeRabbit이 자동으로 리뷰한다. 설정은 루트의 `.coderabbit.yaml`에 있다.
