@@ -11,11 +11,12 @@ import javax.sql.DataSource;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 
-// 앱이 뜰 때 Flyway가 실행되어 로컬 MySQL에 스키마 이력 테이블을 만드는지 확인한다.
+import com.aifilm.support.IntegrationTest;
+
+// 앱이 뜰 때 Flyway가 실행되어 테스트 MySQL 컨테이너에 스키마 이력 테이블을 만드는지 확인한다.
 // app은 infra에 컴파일 의존이 없으므로 Flyway API 대신 JDBC 메타데이터로 확인한다.
-@SpringBootTest
+@IntegrationTest
 class FlywayMigrationTest {
 
 	@Autowired
