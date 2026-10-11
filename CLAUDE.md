@@ -181,6 +181,7 @@ Migration:
 - JUnit 5
 - AssertJ
 - Mockito
+- Testcontainers (MySQL)
 
 기본 원칙:
 
@@ -210,7 +211,8 @@ Worker에서는 특히 다음을 검증한다.
 ./gradlew :infra:test
 ```
 
-- `app`의 테스트(`@SpringBootTest`)는 로컬 MySQL(`docker compose up -d`)과 `.env`의 DB 환경변수가 필요하다.
+- `app`의 통합 테스트에는 `@SpringBootTest` 대신 `@IntegrationTest`를 붙인다. Testcontainers가 `mysql:8.4` 컨테이너를 띄우므로 Docker만 실행 중이면 되고, 로컬 MySQL과 `.env`는 필요 없다. (`docker compose`는 앱을 로컬에서 실행할 때만 쓴다)
+- 테스트 MySQL 컨테이너는 JVM 안에서 하나를 공유한다. 컨텍스트가 닫히면 컨테이너도 멈추므로 app 통합 테스트에서는 `@DirtiesContext`를 쓰지 않는다.
 - `api`의 웹 계층 테스트는 테스트 전용 설정(`ApiTestApplication`)으로 `@WebMvcTest`를 사용하며, DB 없이 실행된다.
 
 작업 완료 전 최소한 변경된 모듈의 테스트를 실행한다.
