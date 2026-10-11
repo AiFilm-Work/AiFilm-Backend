@@ -6,18 +6,18 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.TestPropertySource;
 
 import com.aifilm.api.ApiModuleConfig;
 import com.aifilm.api.ApiScanMarker;
+import com.aifilm.support.IntegrationTest;
 import com.aifilm.worker.WorkerModuleConfig;
 import com.aifilm.worker.WorkerScanMarker;
 
 // 실행 모드 스위치(aifilm.api.enabled, aifilm.worker.enabled) 조합에 따라 api·worker 모듈의 빈이 등록되는지 검증한다.
 // 모듈마다 진입 설정 클래스와, 그 모듈 패키지 스캔으로만 등록되는 테스트 전용 마커 빈이 함께 켜지고 꺼지는지 확인한다.
-@SpringBootTest
+@IntegrationTest
 class AiFilmApplicationModeTest {
 
 	@Nested
