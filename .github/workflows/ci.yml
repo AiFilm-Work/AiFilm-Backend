@@ -20,7 +20,10 @@ jobs:
     timeout-minutes: 20
 
     steps:
+      # 코드를 받은 뒤에는 git 인증이 필요 없으므로, PR 코드가 실행되는 빌드 단계에 토큰을 남기지 않는다.
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-java@v6
         with:
