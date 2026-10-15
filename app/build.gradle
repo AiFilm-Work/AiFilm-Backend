@@ -12,8 +12,12 @@ dependencies {
 	implementation project(':worker')
 
 	implementation 'org.springframework.boot:spring-boot-starter'
+	// 헬스체크(/actuator/health)용. 실행 모드와 상관없이 쓰도록 api가 아니라 app에 둔다.
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	// Actuator 엔드포인트를 MockMvc로 호출해 확인한다.
+	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	// app 통합 테스트가 MySQL 컨테이너를 직접 띄운다. 버전은 Spring Boot BOM이 관리한다 (Testcontainers 2.x).
 	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
 	testImplementation 'org.testcontainers:testcontainers-mysql'
