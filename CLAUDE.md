@@ -52,7 +52,7 @@ Gradle Multi Module 구조를 사용한다.
 
 ### app
 
-main 클래스(`AiFilmApplication`)와 실행 설정(`application.yml`)만 둔다.
+main 클래스(`AiFilmApplication`)와 실행 설정(`application*.yml`)만 둔다. 설정 파일 구성은 Runtime Configuration을 참고한다.
 
 초기에는 API와 Worker를 하나의 JVM에서 함께 실행하며, 실행 모드는 스위치 두 개로 정한다.
 
@@ -75,12 +75,12 @@ main 클래스(`AiFilmApplication`)와 실행 설정(`application.yml`)만 둔�
 - HTTP endpoint는 `api`에 둔다.
 - Scheduler 및 백그라운드 실행 진입점은 `worker`에 둔다.
 - Scheduler 자체에는 비즈니스 로직을 작성하지 않는다.
-- 실행 진입점(main 클래스)은 `app`에만 둔다. `api`·`worker`에는 main 클래스와 `application.yml`을 두지 않는다.
+- 실행 진입점(main 클래스)은 `app`에만 둔다. `api`·`worker`에는 main 클래스와 `application*.yml`을 두지 않는다.
 - JPA 스캔 같은 영역별 설정은 메인 클래스가 아니라 해당 모듈의 `@Configuration` 클래스에 둔다. 메인 클래스에 두면 슬라이스 테스트에도 강제로 적용된다.
 
 ## API Response
 
-모든 API 응답은 `api` 모듈의 `ApiResponse`로 감싼다.
+모든 API 응답은 `api` 모듈의 `ApiResponse`로 감싼다. Actuator(`/actuator/health`)는 예외다. (Runtime Configuration 참고)
 
 ```
 성공: {"status":200,"code":"SUCCESS","message":"요청에 성공했습니다.","data":{...}}
@@ -146,6 +146,7 @@ import 규칙:
 - `openapi3`는 `check`에 의존하므로 테스트가 실패하면 스펙과 jar가 만들어지지 않는다.
 - 스니펫 폴더는 테스트를 시작할 때마다 비워진다. 지운 테스트의 문서는 다음 빌드에서 사라진다.
 - 앱 실행 후 `http://localhost:8080/swagger-ui.html`에서 확인한다. IntelliJ로 실행할 때는 먼저 `./gradlew :api:jar`를 실행해야 스펙이 보인다.
+- Swagger UI는 배포 서버에서도 연다. OpenAPI `servers`는 상대 경로 `/`라서 Swagger UI가 스펙을 받은 서버로 요청을 보낸다. 서버 주소를 `build.gradle`에 따로 적지 않는다.
 
 Swagger UI 정적 파일(`api/src/main/resources/static/swagger-ui/`):
 
@@ -171,6 +172,28 @@ Migration:
 - 테이블은 ERD 전체를 한 번에 만들지 않는다. 기능을 개발할 때 필요한 테이블을 마이그레이션으로 추가하고, 엔티티·리포지토리 테스트와 같은 PR에 넣는다.
 - 첫 배포 전에는 로컬에만 적용된 migration을 고쳐도 된다. 고친 뒤 `docker compose down -v`로 로컬 DB를 초기화한다.
 - 첫 배포 이후에는 이미 적용된 migration 파일을 수정하지 않는다. 스키마 변경은 새 migration 파일로 추가한다.
+
+## Runtime Configuration
+
+설정 파일은 `app/src/main/resources/`에 둔다.
+
+| 파일 | 내용 |
+| --- | --- |
+| `application.yml` | 모든 환경에 공통인 설정, 기본 프로파일(`local`), Actuator 노출 범위, 실행 모드 스위치 |
+| `application-local.yml` | 로컬 실행용. DB 접속 정보의 로컬 기본값, 실행 SQL 로그 |
+| `application-prod.yml` | 배포 서버용. DB 접속 정보를 기본값 없이 환경변수로만 받는다 |
+
+- 프로파일을 지정하지 않으면 `local`로 뜬다. 배포 서버는 `SPRING_PROFILES_ACTIVE=prod`로 실행한다.
+- 환경마다 값이 다른 설정만 프로파일 파일에 두고, 나머지는 `application.yml`에 둔다.
+- DB 접속 정보는 환경변수 `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`로 받는다. 로컬 값은 `.env.example`을 참고한다.
+- 비밀번호, API 키 같은 비밀 값은 설정 파일에 쓰지 않고 환경변수로만 받는다. prod 파일에는 기본값도 두지 않는다.
+- `spring.jpa.open-in-view`는 `false`다. 지연 로딩은 서비스 트랜잭션 안에서 끝내고, 컨트롤러에서 엔티티를 탐색하지 않는다.
+
+Actuator:
+
+- Actuator는 `app` 모듈에 있어서 실행 모드(API만, Worker만)와 상관없이 동작한다.
+- `health`만 노출하고 상세 정보는 숨긴다. 다른 엔드포인트를 열려면 노출 범위와 접근 제한부터 정한다.
+- `/actuator/health` 응답(`{"status":"UP"}`)은 Docker 헬스체크와 로드밸런서가 읽는 형식이라 `ApiResponse`로 감싸지 않는다.
 
 ## Testing
 
@@ -212,6 +235,7 @@ Worker에서는 특히 다음을 검증한다.
 ```
 
 - `app`의 통합 테스트에는 `@SpringBootTest` 대신 `@IntegrationTest`를 붙인다. Testcontainers가 `mysql:8.4` 컨테이너를 띄우므로 Docker만 실행 중이면 되고, 로컬 MySQL과 `.env`는 필요 없다. (`docker compose`는 앱을 로컬에서 실행할 때만 쓴다)
+- `@IntegrationTest`는 프로파일을 지정하지 않아 `local`로 뜬다. 프로파일별 동작을 확인할 때만 `@ActiveProfiles`를 붙인다.
 - 테스트 MySQL 컨테이너는 JVM 안에서 하나를 공유한다. 컨텍스트가 닫히면 컨테이너도 멈추므로 app 통합 테스트에서는 `@DirtiesContext`를 쓰지 않는다.
 - `api`의 웹 계층 테스트는 테스트 전용 설정(`ApiTestApplication`)으로 `@WebMvcTest`를 사용하며, DB 없이 실행된다.
 
