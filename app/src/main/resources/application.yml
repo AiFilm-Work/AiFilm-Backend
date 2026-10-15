@@ -6,6 +6,8 @@ spring:
     default: local
   # DB 접속 정보는 환경마다 달라서 application-local.yml, application-prod.yml에 둔다
   jpa:
+    # 영속성 컨텍스트는 서비스 트랜잭션 안에서만 쓴다. 응답을 만드는 동안 DB 커넥션을 붙잡지 않는다
+    open-in-view: false
     hibernate:
       # 스키마는 Flyway로만 바꾼다. 엔티티와 테이블이 다르면 시작 시 실패한다
       ddl-auto: validate
