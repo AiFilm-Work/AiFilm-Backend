@@ -193,7 +193,26 @@ Actuator:
 
 - Actuator는 `app` 모듈에 있어서 실행 모드(API만, Worker만)와 상관없이 동작한다.
 - `health`만 노출하고 상세 정보는 숨긴다. 다른 엔드포인트를 열려면 노출 범위와 접근 제한부터 정한다.
-- `/actuator/health` 응답(`{"status":"UP"}`)은 Docker 헬스체크와 로드밸런서가 읽는 형식이라 `ApiResponse`로 감싸지 않는다.
+- `/actuator/health` 응답(`{"status":"UP", ...}`)은 Docker 헬스체크와 로드밸런서가 읽는 형식이라 `ApiResponse`로 감싸지 않는다.
+- Spring Boot 4.1은 liveness/readiness 그룹이 기본으로 켜져 있어 응답에 `groups`가 함께 나오고, `/actuator/health/liveness`, `/actuator/health/readiness`도 응답한다.
+
+## Docker
+
+앱 이미지는 미리 빌드한 jar로 만든다. 이미지 안에서는 Gradle을 돌리지 않는다. (Swagger 스펙이 api 테스트로 만들어지기 때문)
+
+```bash
+./gradlew :app:bootJar                       # app/build/libs/aifilm-app.jar 생성 (api 테스트와 Swagger 스펙 생성 포함)
+docker compose --profile app up -d --build   # 앱 + MySQL 실행
+docker compose up -d                         # MySQL만 실행 (IntelliJ로 앱을 띄울 때)
+```
+
+- `Dockerfile`은 jar를 jarmode tools로 레이어별로 풀어서 담는다. jar 이름(`aifilm-app.jar`)을 바꾸면 `Dockerfile`과 `.dockerignore`도 함께 고친다.
+- `.dockerignore`는 jar만 빌드 컨텍스트로 보낸다. 이미지에 `.env`나 비밀 값을 넣지 않는다.
+- 이미지의 기본 프로파일은 `prod`다. DB 접속 정보는 실행할 때 환경변수로 넘기고, compose의 `app` 서비스는 `.env` 값과 `DB_HOST=mysql`을 쓴다.
+- 컨테이너 헬스체크는 `/actuator/health`다. `docker compose --profile app ps`에서 `healthy`인지 확인한다.
+- `app` 서비스는 `app` 프로파일에 묶여 있어서 `ps`, `down` 같은 명령에도 `--profile app`을 붙인다.
+- 앱 컨테이너와 IntelliJ 실행은 둘 다 8080 포트를 쓰므로 동시에 띄우지 않는다.
+- 실행 모드는 `AIFILM_API_ENABLED`, `AIFILM_WORKER_ENABLED` 환경변수(또는 `.env`)로 바꾼다.
 
 ## Testing
 
