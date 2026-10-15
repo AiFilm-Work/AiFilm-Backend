@@ -1,6 +1,8 @@
 // app: api와 worker를 조립해 하나의 JVM으로 실행하는 유일한 실행 모듈. main 클래스와 실행 설정만 둔다.
 bootJar {
 	enabled = true
+	// Dockerfile과 배포 단계가 경로를 고정해서 쓸 수 있게 버전과 상관없이 같은 이름으로 만든다.
+	archiveFileName = 'aifilm-app.jar'
 }
 
 jar {
