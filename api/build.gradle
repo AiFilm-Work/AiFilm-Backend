@@ -32,9 +32,9 @@ openapi3 {
 	description = 'AI FILM 서비스의 REST API 문서'
 	version = project.version.toString()
 	format = 'yaml'
-	// 운영 서버 주소는 배포 주소가 정해지면 추가한다.
+	// 상대 경로라 Swagger UI가 스펙을 받은 서버(로컬, 배포 서버)로 요청을 보낸다.
 	servers = [
-		{ url = 'http://localhost:8080' }
+		{ url = '/' }
 	]
 }
 
