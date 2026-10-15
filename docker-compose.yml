@@ -23,6 +23,29 @@ services:
       retries: 10
       start_period: 20s
 
+  # 앱 컨테이너. jar를 먼저 만든 뒤(./gradlew :app:bootJar) app 프로파일로 띄운다.
+  #   docker compose --profile app up -d --build
+  # 프로파일 없이 docker compose up -d만 하면 지금처럼 MySQL만 뜬다.
+  app:
+    profiles: ["app"]
+    build: .
+    image: aifilm-app:local
+    container_name: aifilm-app
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      # 같은 compose 네트워크 안에서는 서비스 이름과 컨테이너 포트(3306)로 접속한다
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_NAME: ${DB_NAME:-aifilm}
+      DB_USERNAME: ${DB_USERNAME:-aifilm}
+      DB_PASSWORD: ${DB_PASSWORD}
+      AIFILM_API_ENABLED: ${AIFILM_API_ENABLED:-true}
+      AIFILM_WORKER_ENABLED: ${AIFILM_WORKER_ENABLED:-true}
+    ports:
+      - "8080:8080"
+
 volumes:
   aifilm-mysql-data:
     name: aifilm-mysql-data
