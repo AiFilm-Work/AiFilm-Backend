@@ -2,7 +2,7 @@ spring:
   application:
     name: aifilm
   datasource:
-    url: jdbc:mysql://localhost:3306/${DB_NAME:aifilm}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:aifilm}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
     username: ${DB_USERNAME:aifilm}
     password: ${DB_PASSWORD}
   jpa:
