@@ -82,7 +82,7 @@ main에 머지
      deploy  SSM Run Command로 서버에서 deploy/deploy.sh 실행
 ```
 
-`deploy.sh`는 새 이미지를 먼저 받은 뒤(최대 180초) 서버 `.env`의 `APP_IMAGE`를 새 태그로 바꾸고, `docker compose up -d` 후 healthy가 될 때까지 최대 150초 기다린다.
+`deploy.sh`는 새 이미지를 먼저 받은 뒤(최대 180초) 서버 `.env`의 `APP_IMAGE`를 새 태그로 바꾸고, `docker compose up -d`(최대 120초) 후 healthy가 될 때까지 최대 150초 기다린다. 실패했을 때 남기는 로그 출력도 30초로 제한해서, 어느 단계가 멈춰도 이전 이미지로 되돌리는 것까지 750초 안에 끝난다.
 
 - 이미지를 받지 못하면(ECR에 없는 태그, 받기가 멈춤 등) `.env`와 실행 중인 컨테이너를 건드리지 않고 실패한다.
 - 컨테이너를 띄우지 못하거나 healthy가 되지 않으면 마지막 로그를 남기고 이전 이미지로 되돌린 뒤 실패한다. 이전 이미지로도 healthy가 되지 않으면 그렇게 출력하고 끝나므로 서버를 직접 확인한다.
@@ -91,7 +91,8 @@ main에 머지
 
 배포 결과는 Actions의 CD 실행 화면에서 본다. `Deploy to EC2` 스텝에 서버 출력이 그대로 나오고, 같은 내용이 Systems Manager → Run Command 기록에도 남는다.
 CD는 한 번에 하나씩 실행된다. 배포 중에 들어온 실행(머지, 롤백)은 버리지 않고 들어온 순서대로 이어서 실행된다.
-서버 명령의 실행 제한은 900초이고, CD는 그 명령이 끝난 것을 확인한 뒤에 끝난다.
+자동 배포는 서버에 반영하기 직전에 그 커밋이 아직 main의 최신 커밋인지 확인하고, 아니면 배포를 건너뛴다. 이때 CD는 성공으로 끝나고 실행 요약에 건너뛴 이유가 남으며, 최신 커밋은 그 커밋의 CD가 배포한다.
+서버 명령은 전달 제한 120초, 실행 제한 900초이고, CD는 두 제한에 여유 60초를 더한 시간까지 기다려 명령이 끝난 것을 확인한 뒤에 끝난다.
 
 밖에서는 `http://<EC2 퍼블릭 IP>:8080/actuator/health`와 `http://<EC2 퍼블릭 IP>:8080/swagger-ui.html`로 확인한다.
 
@@ -101,6 +102,7 @@ GitHub → Actions → CD → Run workflow에서 브랜치는 `main`, `image_tag
 
 - ECR에 올라가 있는 태그만 배포할 수 있다. 태그 목록은 ECR 콘솔의 `aifilm-app` 이미지 목록이나 아래 명령으로 확인한다.
 - 태그는 커밋 짧은 해시 형식(소문자 16진수 7~40자리)만 받는다.
+- 수동 배포는 main 최신 커밋 검사를 하지 않으므로 이전 태그도 그대로 배포된다.
 
 ```bash
 aws ecr describe-images --repository-name aifilm-app --query "imageDetails[].imageTags" --output text
@@ -145,6 +147,7 @@ docker push "$registry/aifilm-app:$tag"
 - 서버 `.env`에는 DB 비밀번호가 들어 있으므로 권한을 600으로 두고, 저장소나 채팅에 남기지 않는다.
 - EC2를 중지했다 켜면 퍼블릭 IP가 바뀐다. 고정 IP는 HTTPS 작업에서 정한다.
 - EC2를 새로 만들면 배포 역할 정책의 인스턴스 ARN과 GitHub 환경 변수 `EC2_INSTANCE_ID`를 새 인스턴스 ID로 바꾼다.
+- 배포 역할의 신뢰 조건 `sub`는 GitHub가 발급하는 OIDC 토큰 값과 정확히 같아야 한다. 이 저장소에는 `repo:AiFilm-Work@<소유자 ID>/AiFilm-Backend@<저장소 ID>:environment:production`처럼 ID가 붙은 형식으로 발급되고, ID는 `gh api repos/AiFilm-Work/AiFilm-Backend --jq '.owner.id, .id'`로 확인한다. 역할을 다시 만들거나 저장소를 옮긴 뒤 CD가 `Not authorized to perform sts:AssumeRoleWithWebIdentity`로 실패하면, CloudTrail 이벤트 기록에서 `AssumeRoleWithWebIdentity`를 찾아 실제 `sub`(사용자 이름)를 확인하고 신뢰 정책을 맞춘다.
 - 크레딧 사용량은 결제 및 비용 관리의 크레딧 화면과 예산 알림(월 $30)으로 확인한다.
 - RDS는 콘솔에서 일시 중지할 수 있지만 7일이 지나면 자동으로 다시 시작된다.
 - RDS 마스터 암호를 잊으면 RDS 콘솔의 수정에서 새 마스터 암호를 넣고 즉시 적용한다. 1~2분이면 바뀌고 데이터는 그대로다.
