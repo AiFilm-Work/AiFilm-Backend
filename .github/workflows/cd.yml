@@ -1,0 +1,158 @@
+name: CD
+
+# main에 반영된 커밋은 CI가 통과한 뒤 자동으로 배포한다.
+# workflow_dispatch는 ECR에 이미 있는 태그를 다시 배포할 때(롤백) 쓴다.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: '배포할 이미지 태그 (커밋 짧은 해시, ECR에 있는 것만)'
+        required: true
+        type: string
+
+# 배포는 한 번에 하나씩 한다. 진행 중인 배포를 취소하지 않고, 기다리는 실행(롤백 포함)도 버리지 않고 들어온 순서대로 처리한다.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+  queue: max
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REPOSITORY: aifilm-app
+
+jobs:
+  image:
+    # PR에서 돈 CI나 실패한 CI로는 배포하지 않는다.
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # AWS 역할의 신뢰 조건이 production 환경이라, 역할을 받는 job은 모두 이 환경에서 실행한다.
+    environment: production
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      # CI에서 테스트를 통과한 jar를 그대로 이미지로 만든다.
+      - uses: actions/download-artifact@v8
+        with:
+          name: app-jar
+          path: app/build/libs
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - id: tag
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: echo "tag=${HEAD_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # 저장소가 태그 변경 불가라, 같은 커밋으로 다시 실행하면 푸시를 건너뛴다.
+      - name: Build and push image
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.tag.outputs.tag }}
+        run: |
+          if aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids imageTag="$TAG" > /dev/null 2>&1; then
+            echo "$IMAGE 이미지가 이미 있어 푸시를 건너뜁니다."
+            exit 0
+          fi
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+
+  deploy:
+    needs: image
+    # 자동 배포는 image가 성공했을 때, 수동 배포는 image 없이 바로 실행한다.
+    if: always() && (needs.image.result == 'success' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy to EC2
+        env:
+          IMAGE_TAG: ${{ needs.image.outputs.tag || inputs.image_tag }}
+          INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+        run: |
+          # 태그가 서버 셸 명령에 들어가므로 커밋 해시 형식만 받는다.
+          if [[ ! "$IMAGE_TAG" =~ ^[0-9a-f]{7,40}$ ]]; then
+            echo "::error::커밋 해시 형식의 태그가 아닙니다: $IMAGE_TAG"
+            exit 1
+          fi
+
+          # deploy.sh는 bash 문법을 쓰므로 서버에 파일로 옮긴 뒤 bash로 실행한다.
+          script_b64=$(base64 -w0 deploy/deploy.sh)
+          params=$(jq -n --arg tag "$IMAGE_TAG" --arg b64 "$script_b64" '{
+            commands: [
+              "echo \($b64) | base64 -d > /tmp/aifilm-deploy.sh",
+              "IMAGE_TAG=\($tag) bash /tmp/aifilm-deploy.sh"
+            ],
+            executionTimeout: ["900"]
+          }')
+
+          command_id=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --timeout-seconds 120 \
+            --comment "deploy aifilm-app:$IMAGE_TAG" \
+            --parameters "$params" \
+            --query Command.CommandId --output text)
+          echo "SSM 명령 ID: $command_id"
+
+          # 헬스체크와 복구까지 몇 분 걸릴 수 있어 waiter 대신 직접 상태를 확인한다.
+          # 서버 실행 제한(900초)보다 오래 기다려서, 서버 명령이 끝난 것을 확인한 뒤에 이 job을 끝낸다.
+          status=Pending
+          for _ in $(seq 1 200); do
+            sleep 5
+            status=$(aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" \
+              --query Status --output text 2> /dev/null || echo Pending)
+            case "$status" in
+              Pending | InProgress | Delayed) ;;
+              *) break ;;
+            esac
+          done
+
+          echo "----- 서버 출력 -----"
+          aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" \
+            --query '[StandardOutputContent, StandardErrorContent]' --output text
+
+          if [[ "$status" != Success ]]; then
+            echo "::error::배포 실패 (SSM 상태: $status)"
+            exit 1
+          fi
+          echo "배포한 이미지: \`$ECR_REPOSITORY:$IMAGE_TAG\`" >> "$GITHUB_STEP_SUMMARY"
