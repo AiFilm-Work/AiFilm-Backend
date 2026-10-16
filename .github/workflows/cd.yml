@@ -14,10 +14,11 @@ on:
         required: true
         type: string
 
-# 배포는 한 번에 하나씩 한다. 진행 중인 배포는 취소하지 않고 끝날 때까지 기다린다.
+# 배포는 한 번에 하나씩 한다. 진행 중인 배포를 취소하지 않고, 기다리는 실행(롤백 포함)도 버리지 않고 들어온 순서대로 처리한다.
 concurrency:
   group: deploy-production
   cancel-in-progress: false
+  queue: max
 
 permissions:
   contents: read
@@ -86,7 +87,7 @@ jobs:
     # 자동 배포는 image가 성공했을 때, 수동 배포는 image 없이 바로 실행한다.
     if: always() && (needs.image.result == 'success' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     environment: production
     permissions:
       contents: read
@@ -121,20 +122,22 @@ jobs:
               "echo \($b64) | base64 -d > /tmp/aifilm-deploy.sh",
               "IMAGE_TAG=\($tag) bash /tmp/aifilm-deploy.sh"
             ],
-            executionTimeout: ["600"]
+            executionTimeout: ["900"]
           }')
 
           command_id=$(aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name AWS-RunShellScript \
+            --timeout-seconds 120 \
             --comment "deploy aifilm-app:$IMAGE_TAG" \
             --parameters "$params" \
             --query Command.CommandId --output text)
           echo "SSM 명령 ID: $command_id"
 
           # 헬스체크와 복구까지 몇 분 걸릴 수 있어 waiter 대신 직접 상태를 확인한다.
+          # 서버 실행 제한(900초)보다 오래 기다려서, 서버 명령이 끝난 것을 확인한 뒤에 이 job을 끝낸다.
           status=Pending
-          for _ in $(seq 1 120); do
+          for _ in $(seq 1 200); do
             sleep 5
             status=$(aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" \
               --query Status --output text 2> /dev/null || echo Pending)
