@@ -218,12 +218,18 @@ docker compose up -d                         # MySQL만 실행 (IntelliJ로 앱�
 
 배포 서버는 EC2 한 대에서 앱 컨테이너를 띄우고, DB는 RDS(MySQL 8.4)를 쓴다. 절차는 `deploy/README.md`를 따른다.
 
+- main에 머지되고 CI가 성공하면 CD(`.github/workflows/cd.yml`)가 CI의 jar로 이미지를 만들어 ECR에 올리고, SSM Run Command로 서버에서 `deploy/deploy.sh`를 실행한다. 손으로 배포하는 건 `deploy/README.md`의 비상 절차뿐이다.
 - 이미지는 ECR `aifilm-app`에 git 커밋 해시(짧은 형식) 태그로 올린다. 저장소는 태그 변경 불가로 설정되어 있어 같은 태그를 다시 쓰지 않는다.
+- 새 컨테이너가 healthy가 되지 않으면 `deploy.sh`가 이전 이미지로 되돌리고 CD는 실패로 끝난다. 이미지를 받지 못하면 실행 중인 컨테이너는 건드리지 않는다.
+- `deploy.sh`를 고치면 정상 배포뿐 아니라 이미지 받기 실패, healthy 실패 때 서버가 이전 상태로 돌아오는지도 확인한다.
 - 서버 설정은 `deploy/compose.yml`이 기준이다. 서버의 파일을 직접 고치지 않고 저장소에서 고친 뒤 옮긴다.
 - 서버의 `.env`(이미지 주소, DB 접속 정보)는 서버에만 둔다. 예시는 `deploy/.env.example`이고 실제 값은 git에 올리지 않는다.
 - 앱은 RDS 마스터 계정이 아니라 앱 전용 사용자(`aifilm`)로 접속한다.
 - RDS는 퍼블릭 접근을 끄고, 3306은 EC2 보안 그룹에서만 연다. 서버 접속은 Session Manager를 쓰고 SSH(22)는 열지 않는다.
-- 되돌릴 때는 서버 `.env`의 `APP_IMAGE`를 이전 태그로 바꾸고 `docker compose up -d`를 다시 실행한다.
+- 되돌릴 때는 Actions의 CD를 Run workflow로 실행하고 `image_tag`에 이전 태그를 넣는다. 서버 `.env`를 직접 고치는 건 비상 절차다.
+- 배포는 concurrency로 한 번에 하나씩만 실행한다.
+- Actions의 AWS 인증은 OIDC 배포 역할(`production` 환경 변수 `AWS_DEPLOY_ROLE_ARN`)만 쓴다. 장기 액세스 키를 저장소 secret에 넣지 않는다.
+- 배포 역할의 신뢰 조건이 `production` 환경이라, 역할을 받는 job에는 `environment: production`을 붙인다. 이 환경은 main 브랜치에서만 배포할 수 있다.
 - 첫 배포 이후에는 RDS에 적용된 migration 파일을 고치지 않는다. (Database 참고)
 
 ## Testing
@@ -280,6 +286,8 @@ main을 대상으로 하는 PR과 main push마다 GitHub Actions가 `./gradlew b
 - CI는 로컬의 `./gradlew build`와 같은 명령을 돌린다. PR을 올리기 전에 로컬에서 먼저 통과시킨다. (Docker 실행 필요)
 - app 통합 테스트는 러너의 Docker에서 Testcontainers로 MySQL을 띄운다. CI에 DB나 `.env`를 따로 준비하지 않는다.
 - CI가 실패하면 Actions 실행 화면의 `test-reports` 아티팩트에서 모듈별 테스트 리포트를 내려받아 원인을 확인한다.
+- main push 빌드의 jar는 `app-jar` 아티팩트로 올라가고, CD가 이 jar로 이미지를 만든다. jar 이름이나 경로를 바꾸면 `ci.yml`, `cd.yml`, `Dockerfile`, `.dockerignore`를 함께 고친다.
+- `deploy/deploy.sh`는 CI에서 빌드 전에 shellcheck로 검사한다.
 - `gradlew`는 실행 권한(100755)으로 커밋되어 있어야 한다. Windows에서는 권한이 기록되지 않으므로, 권한이 빠지면 `git update-index --chmod=+x gradlew`로 맞춘다.
 
 ## Code Review
