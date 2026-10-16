@@ -25,6 +25,10 @@ jobs:
         with:
           persist-credentials: false
 
+      # 배포 서버에서 실행되는 스크립트라 빌드보다 먼저 문법과 흔한 실수를 검사한다.
+      - name: Lint deploy script
+        run: shellcheck deploy/deploy.sh
+
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
