@@ -220,14 +220,15 @@ docker compose up -d                         # MySQL만 실행 (IntelliJ로 앱�
 
 - main에 머지되고 CI가 성공하면 CD(`.github/workflows/cd.yml`)가 CI의 jar로 이미지를 만들어 ECR에 올리고, SSM Run Command로 서버에서 `deploy/deploy.sh`를 실행한다. 손으로 배포하는 건 `deploy/README.md`의 비상 절차뿐이다.
 - 이미지는 ECR `aifilm-app`에 git 커밋 해시(짧은 형식) 태그로 올린다. 저장소는 태그 변경 불가로 설정되어 있어 같은 태그를 다시 쓰지 않는다.
-- 새 컨테이너가 healthy가 되지 않으면 `deploy.sh`가 이전 이미지로 되돌리고 CD는 실패로 끝난다. 이미지를 받지 못하면 실행 중인 컨테이너는 건드리지 않는다.
-- `deploy.sh`를 고치면 정상 배포뿐 아니라 이미지 받기 실패, healthy 실패 때 서버가 이전 상태로 돌아오는지도 확인한다.
+- `deploy.sh`는 새 이미지를 먼저 받은 뒤에 서버 `.env`를 바꾼다. 받지 못하면 서버를 건드리지 않고, 컨테이너를 띄우지 못하거나 healthy가 되지 않으면 이전 이미지로 되돌린 뒤 CD를 실패로 끝낸다.
+- `deploy.sh`를 고치면 정상 배포뿐 아니라 이미지 받기 실패, 컨테이너 기동 실패, healthy 실패 때 서버가 이전 상태로 돌아오는지도 확인한다.
 - 서버 설정은 `deploy/compose.yml`이 기준이다. 서버의 파일을 직접 고치지 않고 저장소에서 고친 뒤 옮긴다.
 - 서버의 `.env`(이미지 주소, DB 접속 정보)는 서버에만 둔다. 예시는 `deploy/.env.example`이고 실제 값은 git에 올리지 않는다.
 - 앱은 RDS 마스터 계정이 아니라 앱 전용 사용자(`aifilm`)로 접속한다.
 - RDS는 퍼블릭 접근을 끄고, 3306은 EC2 보안 그룹에서만 연다. 서버 접속은 Session Manager를 쓰고 SSH(22)는 열지 않는다.
 - 되돌릴 때는 Actions의 CD를 Run workflow로 실행하고 `image_tag`에 이전 태그를 넣는다. 서버 `.env`를 직접 고치는 건 비상 절차다.
-- 배포는 concurrency로 한 번에 하나씩만 실행한다.
+- 배포는 concurrency(`queue: max`)로 한 번에 하나씩, 들어온 순서대로 실행한다. 서버에서도 `deploy.sh`가 잠금을 걸어 겹쳐 실행되지 않는다.
+- CD가 서버 명령을 기다리는 시간은 SSM 실행 제한(900초)보다 길게 둔다. `deploy.sh`의 대기 시간을 늘리면 이 두 값도 함께 맞춘다.
 - Actions의 AWS 인증은 OIDC 배포 역할(`production` 환경 변수 `AWS_DEPLOY_ROLE_ARN`)만 쓴다. 장기 액세스 키를 저장소 secret에 넣지 않는다.
 - 배포 역할의 신뢰 조건이 `production` 환경이라, 역할을 받는 job에는 `environment: production`을 붙인다. 이 환경은 main 브랜치에서만 배포할 수 있다.
 - 첫 배포 이후에는 RDS에 적용된 migration 파일을 고치지 않는다. (Database 참고)

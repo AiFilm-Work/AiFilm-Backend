@@ -82,14 +82,16 @@ main에 머지
      deploy  SSM Run Command로 서버에서 deploy/deploy.sh 실행
 ```
 
-`deploy.sh`는 서버 `.env`의 `APP_IMAGE`를 새 태그로 바꾸고 `docker compose pull`, `up -d` 후 healthy가 될 때까지 최대 150초 기다린다.
+`deploy.sh`는 새 이미지를 먼저 받은 뒤(최대 180초) 서버 `.env`의 `APP_IMAGE`를 새 태그로 바꾸고, `docker compose up -d` 후 healthy가 될 때까지 최대 150초 기다린다.
 
-- 이미지를 받지 못하면(ECR에 없는 태그 등) `.env`를 원래대로 두고 실패한다. 실행 중인 컨테이너는 그대로다.
-- healthy가 되지 않으면 마지막 로그를 남기고 이전 이미지로 되돌린 뒤 실패한다.
+- 이미지를 받지 못하면(ECR에 없는 태그, 받기가 멈춤 등) `.env`와 실행 중인 컨테이너를 건드리지 않고 실패한다.
+- 컨테이너를 띄우지 못하거나 healthy가 되지 않으면 마지막 로그를 남기고 이전 이미지로 되돌린 뒤 실패한다. 이전 이미지로도 healthy가 되지 않으면 그렇게 출력하고 끝나므로 서버를 직접 확인한다.
+- 서버에서 잠금(`/run/lock/aifilm-deploy.lock`)을 걸어, 앞선 배포가 아직 돌고 있으면 바로 실패한다.
 - 같은 태그를 다시 배포하면 컨테이너를 새로 만들지 않는다.
 
 배포 결과는 Actions의 CD 실행 화면에서 본다. `Deploy to EC2` 스텝에 서버 출력이 그대로 나오고, 같은 내용이 Systems Manager → Run Command 기록에도 남는다.
-CD는 한 번에 하나씩 실행된다. 배포 중에 다시 머지하면 앞의 배포가 끝난 뒤 이어서 실행된다.
+CD는 한 번에 하나씩 실행된다. 배포 중에 들어온 실행(머지, 롤백)은 버리지 않고 들어온 순서대로 이어서 실행된다.
+서버 명령의 실행 제한은 900초이고, CD는 그 명령이 끝난 것을 확인한 뒤에 끝난다.
 
 밖에서는 `http://<EC2 퍼블릭 IP>:8080/actuator/health`와 `http://<EC2 퍼블릭 IP>:8080/swagger-ui.html`로 확인한다.
 
