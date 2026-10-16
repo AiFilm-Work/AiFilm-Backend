@@ -8,8 +8,11 @@ set -euo pipefail
 APP_DIR=/opt/aifilm
 CONTAINER=aifilm-app
 LOCK_FILE=/run/lock/aifilm-deploy.lock
-# 이미지 받기가 멈춰도 SSM 실행 제한 안에 끝나도록 상한을 둔다
+# 어느 단계가 멈춰도 복구까지 SSM 실행 제한(900초) 안에 끝나도록 단계마다 상한을 둔다
+# 최악의 경우: 받기 180 + 기동 120 + 헬스 150 + 로그 30 + 복구 기동 120 + 헬스 150 = 750초
 PULL_TIMEOUT_SECONDS=180
+UP_TIMEOUT_SECONDS=120
+LOGS_TIMEOUT_SECONDS=30
 # 컨테이너 HEALTHCHECK의 start-period(60초)와 재시도 시간을 넉넉히 넘긴다
 HEALTH_TIMEOUT_SECONDS=150
 
@@ -27,6 +30,10 @@ target_image="${current_image%:*}:${IMAGE_TAG}"
 
 set_image() {
   sed -i "s#^APP_IMAGE=.*#APP_IMAGE=$1#" .env
+}
+
+compose_up() {
+  timeout "$UP_TIMEOUT_SECONDS" docker compose up -d
 }
 
 wait_healthy() {
@@ -54,12 +61,12 @@ fi
 
 set_image "$target_image"
 
-# 컨테이너를 띄우지 못하거나 healthy가 되지 않으면 이전 이미지로 되돌린다
-if ! docker compose up -d || ! wait_healthy; then
-  docker compose logs --tail 50 app || true
+# 컨테이너를 띄우지 못하거나(시간 초과 포함) healthy가 되지 않으면 이전 이미지로 되돌린다
+if ! compose_up || ! wait_healthy; then
+  timeout "$LOGS_TIMEOUT_SECONDS" docker compose logs --tail 50 app || true
   echo "이전 이미지로 되돌립니다: $current_image"
   set_image "$current_image"
-  if docker compose up -d && wait_healthy; then
+  if compose_up && wait_healthy; then
     echo "이전 이미지로 복구했습니다."
   else
     echo "이전 이미지로도 healthy가 되지 않았습니다. 서버를 직접 확인하세요."
