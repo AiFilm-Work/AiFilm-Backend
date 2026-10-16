@@ -31,7 +31,8 @@ jobs:
   image:
     # PR에서 돈 CI나 실패한 CI로는 배포하지 않는다.
     if: github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success'
-    runs-on: ubuntu-latest
+    # 러너 이미지가 바뀌면서 빌드·배포가 흔들리지 않도록 Ubuntu 버전을 고정한다. 올릴 때는 ci.yml과 cd.yml을 함께 바꾼다.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     # AWS 역할의 신뢰 조건이 production 환경이라, 역할을 받는 job은 모두 이 환경에서 실행한다.
     environment: production
@@ -86,7 +87,7 @@ jobs:
     needs: image
     # 자동 배포는 image가 성공했을 때, 수동 배포는 image 없이 바로 실행한다.
     if: always() && (needs.image.result == 'success' || github.event_name == 'workflow_dispatch')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     environment: production
     permissions:
