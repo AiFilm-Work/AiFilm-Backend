@@ -39,6 +39,16 @@ jobs:
       - name: Build
         run: ./gradlew build
 
+      # main에 반영된 빌드의 jar는 CD가 이미지로 만든다. PR 실행에서는 배포하지 않으므로 올리지 않는다.
+      - name: Upload app jar
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v7
+        with:
+          name: app-jar
+          path: app/build/libs/aifilm-app.jar
+          if-no-files-found: error
+          retention-days: 3
+
       - name: Upload test reports
         if: failure()
         uses: actions/upload-artifact@v7
