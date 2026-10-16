@@ -9,19 +9,21 @@ GitHub Actions로 자동화하기 전까지는 이 문서 순서대로 직접 �
 | --- | --- |
 | 리전 | `ap-northeast-2` (서울) |
 | ECR | `aifilm-app` (태그 변경 불가, 최근 이미지 10개만 유지) |
-| EC2 | `aifilm-server`, `t3.small`, Ubuntu 24.04(x86_64), 20GiB gp3, CPU 크레딧 사양 Standard |
+| EC2 | `aifilm-server`, `t3.small`, Ubuntu 24.04(x86_64), `ap-northeast-2c`, 20GiB gp3(암호화), CPU 크레딧 사양 Standard, IMDSv2만 허용 |
 | EC2 IAM 역할 | `aifilm-ec2-role` (`AmazonEC2ContainerRegistryReadOnly`, `AmazonSSMManagedInstanceCore`) |
-| RDS | `aifilm-db`, MySQL 8.4, `db.t4g.micro`, 단일 AZ, 퍼블릭 액세스 없음, 초기 DB `aifilm` |
+| RDS | `aifilm-db`, MySQL 8.4, `db.t4g.micro`, 단일 AZ(`ap-northeast-2c`), 20GiB gp3, 퍼블릭 액세스 없음, 초기 DB `aifilm`, 백업 7일, 삭제 방지 |
 | RDS 파라미터 그룹 | `aifilm-mysql84` (`utf8mb4`, `utf8mb4_unicode_ci`, `time_zone=Asia/Seoul`) |
 | 보안 그룹 | `aifilm-ec2-sg`: 8080 허용(임시), SSH 없음 / `aifilm-rds-sg`: 3306은 `aifilm-ec2-sg`에서만 |
 | 서버 접속 | Session Manager (키 페어 없음) |
 | 서버 경로 | `/opt/aifilm` (`compose.yml`, `.env`) |
 
+EC2는 RDS와 같은 가용 영역에 둔다. 다른 영역에 두면 둘 사이 트래픽에 영역 간 전송 요금이 붙는다.
+
 아래 명령의 `<계정ID>`는 AWS 계정 ID(12자리)다.
 
 ## 1. 서버 최초 준비 (한 번만)
 
-EC2 콘솔에서 인스턴스를 선택하고 연결 → Session Manager로 접속한다.
+EC2 콘솔에서 인스턴스를 선택하고 연결 → Session Manager로 접속한다. CloudShell에서 `aws ssm start-session --target <인스턴스 ID>`로 접속해도 된다.
 
 ```bash
 sudo apt-get update
@@ -64,6 +66,8 @@ GRANT ALL PRIVILEGES ON aifilm.* TO 'aifilm'@'%';
 
 앱은 이 사용자로 접속하고, 마스터 계정은 관리할 때만 쓴다.
 
+비밀번호는 영문, 숫자와 `-`, `_` 정도로 정한다. 이 값은 SQL 문과 서버 `.env`에 그대로 들어가는데, 따옴표와 `\`는 SQL 문을 깨거나 값을 바꾸고 `$`는 `.env`에서 변수로 읽힌다.
+
 ## 3. 이미지 빌드·푸시 (로컬 PC, PowerShell)
 
 main에 머지된 커밋으로 만든다. 이미지 태그는 그 커밋의 짧은 해시다.
@@ -75,12 +79,14 @@ git pull
 
 $registry = "<계정ID>.dkr.ecr.ap-northeast-2.amazonaws.com"
 $tag = git rev-parse --short HEAD
-aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin $registry
+cmd /c "aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin $registry"
 docker build -t "$registry/aifilm-app:$tag" .
 docker push "$registry/aifilm-app:$tag"
 ```
 
 - 푸시는 ECR 푸시 권한만 가진 IAM 사용자(`aifilm-ecr-pusher`)의 키로 한다.
+- ECR 로그인은 `cmd /c`로 실행한다. Windows PowerShell(5.1)에서 `aws ... | docker login`을 파이프로 바로 이으면 토큰이 그대로 전달되지 않아 `400 Bad Request`로 실패한다.
+- `aws`를 찾지 못한다는 에러가 나면 AWS CLI를 설치하기 전에 연 터미널이다. 터미널(IntelliJ 포함)을 새로 연다.
 - 저장소가 태그 변경 불가라 같은 태그로 다시 푸시하면 실패한다. 이미 올라간 커밋이면 그 이미지를 그대로 쓴다.
 
 ## 4. 서버에 반영
@@ -118,4 +124,5 @@ aws ecr describe-images --repository-name aifilm-app --query "imageDetails[].ima
 - EC2를 중지했다 켜면 퍼블릭 IP가 바뀐다. 고정 IP는 HTTPS 작업에서 정한다.
 - 크레딧 사용량은 결제 및 비용 관리의 크레딧 화면과 예산 알림(월 $30)으로 확인한다.
 - RDS는 콘솔에서 일시 중지할 수 있지만 7일이 지나면 자동으로 다시 시작된다.
+- RDS 마스터 암호를 잊으면 RDS 콘솔의 수정에서 새 마스터 암호를 넣고 즉시 적용한다. 1~2분이면 바뀌고 데이터는 그대로다.
 - 로컬 PC의 푸시용 액세스 키는 GitHub Actions 배포로 바꾸면 삭제한다.

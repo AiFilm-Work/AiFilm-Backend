@@ -214,6 +214,18 @@ docker compose up -d                         # MySQL만 실행 (IntelliJ로 앱�
 - 앱 컨테이너와 IntelliJ 실행은 둘 다 8080 포트를 쓰므로 동시에 띄우지 않는다.
 - 실행 모드는 `AIFILM_API_ENABLED`, `AIFILM_WORKER_ENABLED` 환경변수(또는 `.env`)로 바꾼다.
 
+## Deployment
+
+배포 서버는 EC2 한 대에서 앱 컨테이너를 띄우고, DB는 RDS(MySQL 8.4)를 쓴다. 절차는 `deploy/README.md`를 따른다.
+
+- 이미지는 ECR `aifilm-app`에 git 커밋 해시(짧은 형식) 태그로 올린다. 저장소는 태그 변경 불가로 설정되어 있어 같은 태그를 다시 쓰지 않는다.
+- 서버 설정은 `deploy/compose.yml`이 기준이다. 서버의 파일을 직접 고치지 않고 저장소에서 고친 뒤 옮긴다.
+- 서버의 `.env`(이미지 주소, DB 접속 정보)는 서버에만 둔다. 예시는 `deploy/.env.example`이고 실제 값은 git에 올리지 않는다.
+- 앱은 RDS 마스터 계정이 아니라 앱 전용 사용자(`aifilm`)로 접속한다.
+- RDS는 퍼블릭 접근을 끄고, 3306은 EC2 보안 그룹에서만 연다. 서버 접속은 Session Manager를 쓰고 SSH(22)는 열지 않는다.
+- 되돌릴 때는 서버 `.env`의 `APP_IMAGE`를 이전 태그로 바꾸고 `docker compose up -d`를 다시 실행한다.
+- 첫 배포 이후에는 RDS에 적용된 migration 파일을 고치지 않는다. (Database 참고)
+
 ## Testing
 
 코드 변경 시 변경된 동작에 대한 테스트를 작성하거나 수정하고 실행한다.
