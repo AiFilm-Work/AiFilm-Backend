@@ -16,7 +16,8 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # 러너 이미지가 바뀌면서 빌드·배포가 흔들리지 않도록 Ubuntu 버전을 고정한다. 올릴 때는 ci.yml과 cd.yml을 함께 바꾼다.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
 
     steps:
