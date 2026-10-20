@@ -9,3 +9,8 @@ logging:
   level:
     # 로컬에서만 실행되는 SQL을 로그로 본다
     org.hibernate.SQL: debug
+
+aifilm:
+  cors:
+    # 로컬 프론트 개발 서버(Next.js 기본 포트)에서 브라우저로 API를 부를 수 있게 한다
+    allowed-origins: http://localhost:3000
