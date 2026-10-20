@@ -242,8 +242,8 @@ docker compose up -d                         # MySQL만 실행 (IntelliJ로 앱�
 - Nginx 설정은 `deploy/nginx/aifilm.conf`가 기준이다. 인증서는 certbot이 자동 갱신하고, 갱신 후 Nginx를 reload한다.
 - 앱 포트는 `127.0.0.1`에만 연다. prod 프로파일은 Tomcat이 사설·루프백 대역에서 온 `X-Forwarded-*`를 믿고 읽으므로, 8080을 밖에 열면 클라이언트가 보낸 헤더가 그대로 반영될 수 있다.
 - 되돌릴 때는 Actions의 CD를 Run workflow로 실행하고 `image_tag`에 이전 태그를 넣는다. 서버 `.env`를 직접 고치는 건 비상 절차다.
-- 배포는 concurrency(`queue: max`)로 한 번에 하나씩, 들어온 순서대로 실행한다. 서버에서도 `deploy.sh`가 잠금을 걸어 겹쳐 실행되지 않는다.
-- 자동 배포는 서버에 반영하기 직전에 대상 커밋이 main의 최신 커밋인지 확인하고, 아니면 건너뛴다. 수동 배포(롤백)는 이 검사를 하지 않는다.
+- 배포는 concurrency(`queue: max`)로 한 번에 하나씩, 대기를 시작한 순서대로 실행한다. 대기열은 최대 100개이고 넘치면 새 실행이 취소된다. 서버에서도 `deploy.sh`가 잠금을 걸어 겹쳐 실행되지 않는다.
+- 자동 배포는 서버에 반영하기 직전에 대상 커밋이 main의 최신 커밋인지 확인하고, 아니면 건너뛴다. 최신 커밋은 그 커밋의 CI가 성공해야 배포된다. 수동 배포(롤백)는 이 검사를 하지 않는다.
 - CD는 SSM 전달 제한과 실행 제한을 합친 시간보다 오래 기다린다. 두 제한은 `cd.yml`의 `delivery_timeout`, `execution_timeout`에서 고치고, `deploy.sh`의 시간 제한 합이 실행 제한을 넘지 않게 함께 맞춘다.
 - Actions의 AWS 인증은 OIDC 배포 역할(`production` 환경 변수 `AWS_DEPLOY_ROLE_ARN`)만 쓴다. 장기 액세스 키를 저장소 secret에 넣지 않는다.
 - 배포 역할의 신뢰 조건이 `production` 환경이라, 역할을 받는 job에는 `environment: production`을 붙인다. 이 환경은 main 브랜치에서만 배포할 수 있다. 신뢰 조건의 `sub`는 소유자·저장소 ID가 붙은 형식이다. (`deploy/README.md` 운영 메모 참고)
