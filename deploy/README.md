@@ -98,14 +98,16 @@ systemctl list-timers | grep certbot
 sudo certbot renew --dry-run
 ```
 
-`https://api.aifilm.life/actuator/health`가 응답하는 걸 확인한 뒤에 앱 포트를 서버 안으로 닫는다.
+Nginx를 적용한 뒤 앱을 띄우고(이미 떠 있으면 다시 만들고) HTTPS로 확인한다. 1단계에서 저장소의 `deploy/compose.yml`을 옮겼으므로 앱 포트는 서버 안(`127.0.0.1:8080`)에만 열린다.
 
 ```bash
-sudo nano /opt/aifilm/compose.yml   # 저장소의 deploy/compose.yml로 바꾼다 (8080을 127.0.0.1에만 연다)
 cd /opt/aifilm && sudo docker compose up -d
+sudo docker compose ps             # STATUS가 (healthy)가 될 때까지 확인한다
 ```
 
-마지막으로 보안 그룹 `aifilm-ec2-sg`에서 8080 규칙을 지운다.
+밖에서 `https://api.aifilm.life/actuator/health`가 `UP`인지 확인한다.
+
+8080을 밖에 열어 쓰던 기존 서버에 적용할 때는 위 `docker compose up -d` 전에 `/opt/aifilm/compose.yml`을 저장소의 `deploy/compose.yml`로 바꾸고(`sudo nano /opt/aifilm/compose.yml`), HTTPS 확인이 끝나면 보안 그룹 `aifilm-ec2-sg`에서 8080 규칙을 지운다.
 
 ## 4. 자동 배포 (GitHub Actions)
 
@@ -184,7 +186,7 @@ docker push "$registry/aifilm-app:$tag"
 - 서버 `.env`에는 DB 비밀번호가 들어 있으므로 권한을 600으로 두고, 저장소나 채팅에 남기지 않는다.
 - 고정 IP는 Elastic IP다. 인스턴스를 중지하거나 연결을 끊은 상태에서도 요금이 나오므로, 서버를 없앨 때는 Elastic IP도 해제한다.
 - Nginx 설정은 저장소의 `deploy/nginx/aifilm.conf`가 기준이다. 서버의 `/etc/nginx/conf.d/aifilm.conf`를 직접 고치지 않고, 저장소에서 고친 뒤 옮겨서 `sudo nginx -t && sudo systemctl reload nginx`로 반영한다.
-- 브라우저에서 API를 부를 프론트 출처는 서버 `.env`의 `AIFILM_CORS_ALLOWED_ORIGINS`에 쉼표로 넣고 `sudo docker compose up -d`로 컨테이너를 다시 만든다.
+- 브라우저에서 API를 부를 프론트 출처는 서버 `.env`의 `AIFILM_CORS_ALLOWED_ORIGINS`에 쉼표로 넣고 `cd /opt/aifilm && sudo docker compose up -d`로 컨테이너를 다시 만든다.
 - 도메인 `aifilm.life`는 자동 연장을 꺼 두었다. 만료일은 가비아에서 확인한다.
 - EC2를 새로 만들면 배포 역할 정책의 인스턴스 ARN과 GitHub 환경 변수 `EC2_INSTANCE_ID`를 새 인스턴스 ID로 바꾼다.
 - 배포 역할의 신뢰 조건 `sub`는 GitHub가 발급하는 OIDC 토큰 값과 정확히 같아야 한다. 이 저장소에는 `repo:AiFilm-Work@<소유자 ID>/AiFilm-Backend@<저장소 ID>:environment:production`처럼 ID가 붙은 형식으로 발급되고, ID는 `gh api repos/AiFilm-Work/AiFilm-Backend --jq '.owner.id, .id'`로 확인한다. 역할을 다시 만들거나 저장소를 옮긴 뒤 CD가 `Not authorized to perform sts:AssumeRoleWithWebIdentity`로 실패하면, CloudTrail 이벤트 기록에서 `AssumeRoleWithWebIdentity`를 찾아 실제 `sub`(사용자 이름)를 확인하고 신뢰 정책을 맞춘다.
