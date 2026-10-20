@@ -3,6 +3,11 @@
 -- - youtube_availability_status 기본값 끝의 공백을 뺐다.
 -- - candidate_id는 후보 테이블(youtube_movie_candidate)을 만들 때 함께 추가한다.
 -- - genre.image_url은 장르 이미지가 정해질 때까지 NULL을 허용한다.
+-- ERD에 없던 것을 추가했다.
+-- - 모든 PK에 AUTO_INCREMENT를 붙였다.
+-- - movie.youtube_video_id, genre.name에 UNIQUE를 걸었다. 같은 영상·장르가 두 번 들어가지 않게 DB에서 막는다.
+-- - running_time_seconds > 0, average_rating BETWEEN 0 AND 5 CHECK를 걸었다.
+-- - movie_genre에 장르로 영화를 찾는 (genre_id, movie_id) 인덱스를 추가했다.
 
 CREATE TABLE genre
 (
