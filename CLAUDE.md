@@ -78,6 +78,16 @@ main 클래스(`AiFilmApplication`)와 실행 설정(`application*.yml`)만 둔�
 - 실행 진입점(main 클래스)은 `app`에만 둔다. `api`·`worker`에는 main 클래스와 `application*.yml`을 두지 않는다.
 - JPA 스캔 같은 영역별 설정은 메인 클래스가 아니라 해당 모듈의 `@Configuration` 클래스에 둔다. 메인 클래스에 두면 슬라이스 테스트에도 강제로 적용된다.
 
+Entity / Repository:
+
+- 엔티티, 상태 enum, 리포지토리 인터페이스는 `domain`의 `com.aifilm.domain.<도메인>`에 둔다. (예: `Movie`, `ScreeningStatus`, `MovieRepository`)
+- `domain`은 JPA 애너테이션 스펙(`jakarta.persistence-api`)에만 의존한다. Hibernate 전용 애너테이션(`@DynamicUpdate`, `@JdbcTypeCode` 등)과 Spring Data 타입은 `domain`에서 쓰지 않는다.
+- Spring Data 인터페이스(`Jpa<엔티티>Repository`)와 domain 리포지토리 구현(`<엔티티>RepositoryImpl`, `@Repository`)은 `infra`의 `com.aifilm.infra.mysql.<도메인>`에 둔다. 서비스는 domain 리포지토리 인터페이스만 쓴다.
+- 다른 애그리거트는 엔티티 연관관계 대신 ID로 참조한다. (예: `Movie.genreIds`는 `movie_genre`를 `@ElementCollection`으로 매핑) 다른 애그리거트 정보가 필요한 조회는 조회 쿼리에서 조인한다.
+- 엔티티는 기본 생성자를 `protected`로 두고, 생성자(또는 빌더)에서 필수 값과 생성 규칙을 검증한다. 상태·집계 값의 시작값은 호출자가 아니라 엔티티가 정한다.
+- `created_at`, `updated_at`은 엔티티의 `@PrePersist`, `@PreUpdate`에서 채운다.
+- `TEXT` 컬럼은 `@Column(columnDefinition = "TEXT")`를 붙인다. 없으면 `ddl-auto=validate`가 `VARCHAR`를 기대해 실패한다.
+
 ## API Response
 
 모든 API 응답은 `api` 모듈의 `ApiResponse`로 감싼다. Actuator(`/actuator/health`)는 예외다. (Runtime Configuration 참고)
@@ -170,8 +180,33 @@ Migration:
 - 파일 이름: `V{번호}__{설명}.sql` (예: `V1__create_movie.sql`, `V2__add_movie_runtime.sql`)
   - 번호는 1부터 차례로 올린다. 설명은 영문 소문자 snake_case로 쓴다.
 - 테이블은 ERD 전체를 한 번에 만들지 않는다. 기능을 개발할 때 필요한 테이블을 마이그레이션으로 추가하고, 엔티티·리포지토리 테스트와 같은 PR에 넣는다.
-- 첫 배포 전에는 로컬에만 적용된 migration을 고쳐도 된다. 고친 뒤 `docker compose down -v`로 로컬 DB를 초기화한다.
-- 첫 배포 이후에는 이미 적용된 migration 파일을 수정하지 않는다. 스키마 변경은 새 migration 파일로 추가한다.
+- ERD(2026-09-28 스냅샷)는 출발점이다. 옮기면서 바꾼 점(컬럼 이름·타입, 빠진 제약, 아직 없는 테이블 참조)은 migration 파일 위 주석에 남긴다.
+- main에 머지되기 전, 로컬에만 적용된 migration은 고쳐도 된다. 고친 뒤 `docker compose down -v`로 로컬 DB를 초기화한다.
+- main에 머지된 migration은 CD 배포 때 운영 RDS에 적용되므로 수정하지 않는다. 스키마 변경은 새 migration 파일로 추가한다.
+- 제약과 인덱스에는 이름을 붙인다: `pk_<테이블>`, `uk_<테이블>_<컬럼>`, `fk_<테이블>_<참조 테이블>`, `idx_<테이블>_<컬럼>`, `ck_<테이블>_<컬럼>`.
+- 테이블은 `ENGINE = InnoDB`, `utf8mb4`, `utf8mb4_unicode_ci`를 명시한다.
+- PK는 `BIGINT AUTO_INCREMENT`이고 엔티티는 `GenerationType.IDENTITY`를 쓴다.
+- 같은 데이터가 두 번 들어가면 안 되는 컬럼(예: `movie.youtube_video_id`)은 애플리케이션 검사와 별개로 DB UNIQUE로 막는다.
+- 기준 데이터(예: 장르)는 클라이언트가 ID로 참조하므로 migration에서 ID를 지정해 넣는다. 추가할 때는 기존 파일을 고치지 않고 새 migration으로 다음 ID를 넣는다.
+- 한 migration 파일에는 하나의 목적만 담는다. MySQL DDL은 트랜잭션으로 묶이지 않아서, 중간에 실패하면 일부만 적용된 채 `flyway_schema_history`에 실패 기록이 남고 이전 버전 앱도 뜨지 못한다. 이때는 남은 변경을 손으로 정리하고 `flyway repair`로 기록을 지운다.
+
+롤백을 고려한 스키마 변경:
+
+- CD 롤백(Run workflow)은 이전 이미지만 다시 띄우고 DB는 되돌리지 않는다. 그래서 새 스키마에서 이전 버전 앱이 `ddl-auto=validate`를 통과하고 동작해야 한다.
+- 새 테이블, NULL 허용 컬럼, `DEFAULT`가 있는 NOT NULL 컬럼 추가는 한 번에 해도 된다. 이전 버전 앱은 모르는 테이블·컬럼을 무시하고, `DEFAULT`가 있으면 그 컬럼 없이 INSERT해도 실패하지 않는다.
+- 이전 버전 앱도 Flyway를 실행한다. 이전 앱이 모르는 새 migration은 Flyway 기본 설정(`ignoreMigrationPatterns = *:future`)으로 검증에서 건너뛴다.
+- 컬럼 삭제·이름 변경·타입 축소는 한 번에 하지 않고 배포를 나눈다.
+  1. 새 컬럼을 추가하고 앱이 두 컬럼에 모두 쓰게 한다.
+  2. 기존 데이터를 옮기고 앱이 새 컬럼만 읽게 한다.
+  3. 롤백할 일이 없다고 판단한 다음 배포에서 기존 컬럼을 지운다.
+
+로컬 샘플 데이터:
+
+- 로컬 개발용 샘플은 `infra/src/main/resources/db/sample/`의 반복 실행 migration(`R__*.sql`)에 둔다. `application-local.yml`의 `spring.flyway.locations`에만 이 경로가 있어서 운영 DB에는 들어가지 않는다.
+- `R__` 파일은 내용이 바뀌면 다시 실행되므로 몇 번 실행해도 결과가 같게 쓴다. 행은 `ON DUPLICATE KEY UPDATE`로 덮어쓰고, 연결 테이블처럼 빠진 항목이 남으면 안 되는 데이터는 샘플 범위만 지운 뒤 다시 넣는다.
+- 샘플 YouTube 영상 ID는 `local-sample-*` 자리표시자라 실제로 재생되지 않는다.
+- `@IntegrationTest`는 `spring.flyway.locations`를 `db/migration`으로 덮어써 테스트 DB에 샘플을 넣지 않는다.
+- 터미널에서 로컬 DB를 조회할 때는 `docker compose exec mysql mysql -uaifilm -p --default-character-set=utf8mb4 aifilm`으로 접속한다. 문자셋을 지정하지 않으면 한글이 `?`로 보인다(저장된 값은 정상).
 
 ## Runtime Configuration
 
@@ -293,6 +328,10 @@ Worker에서는 특히 다음을 검증한다.
 - `@IntegrationTest`의 웹 환경은 기본 `MOCK`이다. Tomcat 밸브처럼 실제 서버에서만 동작하는 기능을 확인할 때만 `@IntegrationTest(webEnvironment = RANDOM_PORT)`로 띄운다. `@SpringBootTest`를 직접 붙이지 않는다.
 - 테스트 MySQL 컨테이너는 JVM 안에서 하나를 공유한다. 컨텍스트가 닫히면 컨테이너도 멈추므로 app 통합 테스트에서는 `@DirtiesContext`를 쓰지 않는다.
 - `api`의 웹 계층 테스트는 테스트 전용 설정(`ApiTestApplication`)으로 `@WebMvcTest`를 사용하며, DB 없이 실행된다.
+- `domain`의 엔티티 생성 규칙은 스프링 없이 단위 테스트한다.
+- `infra`의 리포지토리 테스트에는 `@RepositoryTest`를 붙이고 테스트할 `<엔티티>RepositoryImpl`을 `@Import`한다. `@DataJpaTest`로 JPA 빈만 띄우고, Testcontainers MySQL에 Flyway migration을 적용한 뒤 `ddl-auto=validate`로 엔티티와 스키마가 같은지 검증한다. 각 테스트는 끝나면 롤백된다.
+- `infra` 테스트는 테스트 전용 설정(`InfraTestApplication`)을 쓴다. 엔티티가 `domain`에 있어서 `@EntityScan("com.aifilm.domain")`으로 스캔 범위를 지정한다.
+- DB 제약(UNIQUE, FK) 위반은 예외 타입이 감싸는 위치에 따라 달라지므로, 원인 예외(`SQLIntegrityConstraintViolationException`)로 확인한다.
 
 작업 완료 전 최소한 변경된 모듈의 테스트를 실행한다.
 테스트를 실행하지 못한 경우 그 사실과 이유를 명시한다.
