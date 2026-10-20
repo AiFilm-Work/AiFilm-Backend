@@ -4,3 +4,12 @@ spring:
     url: jdbc:mysql://${DB_HOST}:${DB_PORT:3306}/${DB_NAME}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+
+server:
+  # Nginx 뒤에서 실행되므로 Nginx가 넘긴 헤더로 원래 scheme(https)과 클라이언트 IP를 읽는다.
+  # Tomcat은 사설·루프백 대역(Docker 브리지 포함)에서 온 헤더만 믿는다. 앱 포트는 서버 안에서만 연다.
+  forward-headers-strategy: native
+  tomcat:
+    remoteip:
+      remote-ip-header: x-forwarded-for
+      protocol-header: x-forwarded-proto

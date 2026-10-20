@@ -14,11 +14,14 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD를 .env에 지정하세요}
       AIFILM_API_ENABLED: ${AIFILM_API_ENABLED:-true}
       AIFILM_WORKER_ENABLED: ${AIFILM_WORKER_ENABLED:-true}
+      # 브라우저에서 API를 부를 프론트 출처(쉼표로 구분). 비워 두면 다른 출처의 브라우저 요청을 허용하지 않는다
+      AIFILM_CORS_ALLOWED_ORIGINS: ${AIFILM_CORS_ALLOWED_ORIGINS:-}
       # 서버 메모리가 2GB라 컨테이너 상한(1.5GB)의 65%를 힙으로 쓰고, 나머지는 메타스페이스·스레드 등에 남긴다
       JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=65.0"
     mem_limit: 1536m
+    # 앱은 서버 안에서만 받는다. 밖에서는 Nginx(80, 443)를 거쳐서만 들어온다
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     # 로그 파일이 디스크를 채우지 않게 10MB씩 3개까지만 남긴다
     logging:
       driver: json-file
