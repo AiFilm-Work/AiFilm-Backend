@@ -22,4 +22,7 @@ dependencies {
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-flyway-test'
+	// 리포지토리 테스트가 MySQL 컨테이너를 띄운다. 버전은 Spring Boot BOM이 관리한다 (Testcontainers 2.x).
+	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+	testImplementation 'org.testcontainers:testcontainers-mysql'
 }
