@@ -59,4 +59,16 @@ class FlywayMigrationTest {
 			Map.entry(6L, "코미디"),
 			Map.entry(7L, "애니메이션"));
 	}
+
+	@Test
+	@DisplayName("통합 테스트 DB에는 로컬 샘플 영화가 들어가지 않는다")
+	void doesNotInsertLocalSampleMovies() throws SQLException {
+		try (Connection connection = dataSource.getConnection();
+			Statement statement = connection.createStatement();
+			ResultSet rows = statement.executeQuery(
+				"SELECT COUNT(*) FROM movie WHERE youtube_video_id LIKE 'local-sample-%'")) {
+			rows.next();
+			assertThat(rows.getLong(1)).isZero();
+		}
+	}
 }

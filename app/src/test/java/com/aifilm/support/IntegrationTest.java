@@ -11,9 +11,10 @@ import org.springframework.core.annotation.AliasFor;
 
 // app 통합 테스트용 어노테이션. 앱 전체 컨텍스트를 띄우고 DataSource를 테스트 MySQL 컨테이너에 연결한다.
 // 프로파일별 설정 파일(application-local.yml 등)의 접속 정보 대신 @ServiceConnection이 컨테이너 주소를 넣어 준다.
+// local 프로파일로 뜨지만 로컬 샘플 데이터(db/sample)는 넣지 않는다. 테스트가 직접 넣은 데이터만 보도록 하기 위해서다.
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-@SpringBootTest
+@SpringBootTest(properties = "spring.flyway.locations=classpath:db/migration")
 @ImportTestcontainers(MySqlTestContainer.class)
 public @interface IntegrationTest {
 
