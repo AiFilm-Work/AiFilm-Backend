@@ -1,7 +1,7 @@
 # 배포 절차
 
 배포 서버(EC2) 한 대에서 앱 컨테이너를 띄우고, DB는 RDS(MySQL 8.4)를 쓴다. 이미지는 ECR에 커밋 해시 태그로 올린다.
-main에 머지되면 GitHub Actions(CD)가 이미지 빌드부터 서버 반영까지 한다. 서버를 처음 만들 때만 1·2단계를 직접 한다.
+main에 머지되면 GitHub Actions(CD)가 이미지 빌드부터 서버 반영까지 한다. 서버를 처음 만들 때만 1~3단계를 직접 한다. 밖에서는 `https://api.aifilm.life`로 접속한다.
 
 ## 구성
 
@@ -13,7 +13,10 @@ main에 머지되면 GitHub Actions(CD)가 이미지 빌드부터 서버 반영�
 | EC2 IAM 역할 | `aifilm-ec2-role` (`AmazonEC2ContainerRegistryReadOnly`, `AmazonSSMManagedInstanceCore`) |
 | RDS | `aifilm-db`, MySQL 8.4, `db.t4g.micro`, 단일 AZ(`ap-northeast-2c`), 20GiB gp3, 퍼블릭 액세스 없음, 초기 DB `aifilm`, 백업 7일, 삭제 방지 |
 | RDS 파라미터 그룹 | `aifilm-mysql84` (`utf8mb4`, `utf8mb4_unicode_ci`, `time_zone=Asia/Seoul`) |
-| 보안 그룹 | `aifilm-ec2-sg`: 8080 허용(임시), SSH 없음 / `aifilm-rds-sg`: 3306은 `aifilm-ec2-sg`에서만 |
+| 보안 그룹 | `aifilm-ec2-sg`: 80, 443 허용, 8080·SSH 없음 / `aifilm-rds-sg`: 3306은 `aifilm-ec2-sg`에서만 |
+| 고정 IP | Elastic IP `aifilm-server-eip`, `aifilm-server`에 연결 |
+| 도메인 | `api.aifilm.life` (가비아에서 구매, `api` A 레코드 → Elastic IP) |
+| HTTPS | 서버의 Nginx가 443을 받아 앱(`127.0.0.1:8080`)으로 넘긴다. 인증서는 Let's Encrypt(certbot, 자동 갱신) |
 | 서버 접속 | Session Manager (키 페어 없음) |
 | 서버 경로 | `/opt/aifilm` (`compose.yml`, `.env`) |
 | 배포 역할 | `aifilm-github-deploy` (GitHub OIDC). 이 저장소의 `production` 환경에서만 받을 수 있고, ECR `aifilm-app` 푸시와 `aifilm-server`의 `AWS-RunShellScript` 실행만 허용 |
@@ -70,7 +73,41 @@ GRANT ALL PRIVILEGES ON aifilm.* TO 'aifilm'@'%';
 
 비밀번호는 영문, 숫자와 `-`, `_` 정도로 정한다. 이 값은 SQL 문과 서버 `.env`에 그대로 들어가는데, 따옴표와 `\`는 SQL 문을 깨거나 값을 바꾸고 `$`는 `.env`에서 변수로 읽힌다.
 
-## 3. 자동 배포 (GitHub Actions)
+## 3. 도메인과 HTTPS 설정 (한 번만)
+
+보안 그룹 `aifilm-ec2-sg`에 80, 443이 열려 있고 `api.aifilm.life`가 Elastic IP를 가리키는 상태에서 진행한다. (`nslookup api.aifilm.life`로 확인)
+
+```bash
+sudo apt-get install -y nginx certbot python3-certbot-nginx
+
+# 인증서만 받는다. 도메인 확인은 nginx 플러그인이 80 포트로 잠시 처리하고, 설정 파일은 고치지 않는다
+sudo certbot certonly --nginx -d api.aifilm.life -m <이메일> --agree-tos --no-eff-email
+
+# 저장소의 deploy/nginx/aifilm.conf 내용을 붙여넣고, 기본 사이트는 끈다
+sudo nano /etc/nginx/conf.d/aifilm.conf
+sudo rm /etc/nginx/sites-enabled/default
+sudo nginx -t
+sudo systemctl reload nginx
+
+# 인증서가 갱신되면 Nginx가 새 인증서를 다시 읽도록 reload한다
+printf '#!/bin/sh\nsystemctl reload nginx\n' | sudo tee /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+
+# 자동 갱신 확인: certbot 타이머가 있고, 갱신 시험이 성공해야 한다
+systemctl list-timers | grep certbot
+sudo certbot renew --dry-run
+```
+
+`https://api.aifilm.life/actuator/health`가 응답하는 걸 확인한 뒤에 앱 포트를 서버 안으로 닫는다.
+
+```bash
+sudo nano /opt/aifilm/compose.yml   # 저장소의 deploy/compose.yml로 바꾼다 (8080을 127.0.0.1에만 연다)
+cd /opt/aifilm && sudo docker compose up -d
+```
+
+마지막으로 보안 그룹 `aifilm-ec2-sg`에서 8080 규칙을 지운다.
+
+## 4. 자동 배포 (GitHub Actions)
 
 main에 머지되면 아래 순서로 배포된다. 손으로 할 일은 없다.
 
@@ -94,9 +131,9 @@ CD는 한 번에 하나씩 실행된다. 배포 중에 들어온 실행(머지, 
 자동 배포는 서버에 반영하기 직전에 그 커밋이 아직 main의 최신 커밋인지 확인하고, 아니면 배포를 건너뛴다. 이때 CD는 성공으로 끝나고 실행 요약에 건너뛴 이유가 남으며, 최신 커밋은 그 커밋의 CD가 배포한다.
 서버 명령은 전달 제한 120초, 실행 제한 900초이고, CD는 두 제한에 여유 60초를 더한 시간까지 기다려 명령이 끝난 것을 확인한 뒤에 끝난다.
 
-밖에서는 `http://<EC2 퍼블릭 IP>:8080/actuator/health`와 `http://<EC2 퍼블릭 IP>:8080/swagger-ui.html`로 확인한다.
+밖에서는 `https://api.aifilm.life/actuator/health`와 `https://api.aifilm.life/swagger-ui.html`로 확인한다. `http://`로 들어오면 HTTPS로 넘어가고, 8080은 밖에서 열리지 않는다.
 
-## 4. 롤백
+## 5. 롤백
 
 GitHub → Actions → CD → Run workflow에서 브랜치는 `main`, `image_tag`에 되돌릴 태그를 넣고 실행한다. 서버 반영과 실패 처리는 자동 배포와 같다.
 
@@ -108,7 +145,7 @@ GitHub → Actions → CD → Run workflow에서 브랜치는 `main`, `image_tag
 aws ecr describe-images --repository-name aifilm-app --query "imageDetails[].imageTags" --output text
 ```
 
-## 5. 비상: 손으로 배포하기
+## 6. 비상: 손으로 배포하기
 
 Actions를 쓸 수 없을 때만 쓴다. Session Manager로 서버에 접속해서 반영한다.
 
@@ -145,7 +182,10 @@ docker push "$registry/aifilm-app:$tag"
 
 - 서버의 `compose.yml`은 직접 고치지 않는다. 저장소의 `deploy/compose.yml`을 고친 뒤 옮긴다. CD는 이 파일을 옮기지 않는다.
 - 서버 `.env`에는 DB 비밀번호가 들어 있으므로 권한을 600으로 두고, 저장소나 채팅에 남기지 않는다.
-- EC2를 중지했다 켜면 퍼블릭 IP가 바뀐다. 고정 IP는 HTTPS 작업에서 정한다.
+- 고정 IP는 Elastic IP다. 인스턴스를 중지하거나 연결을 끊은 상태에서도 요금이 나오므로, 서버를 없앨 때는 Elastic IP도 해제한다.
+- Nginx 설정은 저장소의 `deploy/nginx/aifilm.conf`가 기준이다. 서버의 `/etc/nginx/conf.d/aifilm.conf`를 직접 고치지 않고, 저장소에서 고친 뒤 옮겨서 `sudo nginx -t && sudo systemctl reload nginx`로 반영한다.
+- 브라우저에서 API를 부를 프론트 출처는 서버 `.env`의 `AIFILM_CORS_ALLOWED_ORIGINS`에 쉼표로 넣고 `sudo docker compose up -d`로 컨테이너를 다시 만든다.
+- 도메인 `aifilm.life`는 자동 연장을 꺼 두었다. 만료일은 가비아에서 확인한다.
 - EC2를 새로 만들면 배포 역할 정책의 인스턴스 ARN과 GitHub 환경 변수 `EC2_INSTANCE_ID`를 새 인스턴스 ID로 바꾼다.
 - 배포 역할의 신뢰 조건 `sub`는 GitHub가 발급하는 OIDC 토큰 값과 정확히 같아야 한다. 이 저장소에는 `repo:AiFilm-Work@<소유자 ID>/AiFilm-Backend@<저장소 ID>:environment:production`처럼 ID가 붙은 형식으로 발급되고, ID는 `gh api repos/AiFilm-Work/AiFilm-Backend --jq '.owner.id, .id'`로 확인한다. 역할을 다시 만들거나 저장소를 옮긴 뒤 CD가 `Not authorized to perform sts:AssumeRoleWithWebIdentity`로 실패하면, CloudTrail 이벤트 기록에서 `AssumeRoleWithWebIdentity`를 찾아 실제 `sub`(사용자 이름)를 확인하고 신뢰 정책을 맞춘다.
 - 크레딧 사용량은 결제 및 비용 관리의 크레딧 화면과 예산 알림(월 $30)으로 확인한다.
