@@ -12,19 +12,17 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.testcontainers.context.ImportTestcontainers;
+import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.aifilm.support.MySqlTestContainer;
+import com.aifilm.support.IntegrationTest;
 
 // prod 프로파일에서 Nginx가 넘기는 X-Forwarded-* 헤더를 읽는지 확인한다.
-// RemoteIpValve는 MockMvc가 아니라 실제 Tomcat에서만 동작하므로 @IntegrationTest 대신 실제 포트로 띄운다.
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ImportTestcontainers(MySqlTestContainer.class)
+// RemoteIpValve는 MockMvc가 아니라 실제 Tomcat에서만 동작하므로 실제 포트로 띄워 HTTP 요청을 보낸다.
+@IntegrationTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("prod")
 @Import(ForwardedHeadersTest.RequestInfoController.class)
 class ForwardedHeadersTest {

@@ -205,7 +205,7 @@ CORS:
 프록시 헤더:
 
 - prod 프로파일은 Nginx 뒤에서 실행되므로 `server.forward-headers-strategy=native`와 Tomcat `remoteip` 설정으로 `X-Forwarded-Proto`, `X-Forwarded-For`를 읽는다.
-- `RemoteIpValve`는 실제 Tomcat에서만 동작해서 MockMvc로는 확인되지 않는다. 이 동작은 실제 포트로 띄우는 `ForwardedHeadersTest`로 검증한다.
+- `RemoteIpValve`는 실제 Tomcat에서만 동작해서 MockMvc로는 확인되지 않는다. 이 동작은 `@IntegrationTest(webEnvironment = RANDOM_PORT)`로 띄우는 `ForwardedHeadersTest`로 검증한다.
 
 ## Docker
 
@@ -290,6 +290,7 @@ Worker에서는 특히 다음을 검증한다.
 
 - `app`의 통합 테스트에는 `@SpringBootTest` 대신 `@IntegrationTest`를 붙인다. Testcontainers가 `mysql:8.4` 컨테이너를 띄우므로 Docker만 실행 중이면 되고, 로컬 MySQL과 `.env`는 필요 없다. (`docker compose`는 앱을 로컬에서 실행할 때만 쓴다)
 - `@IntegrationTest`는 프로파일을 지정하지 않아 `local`로 뜬다. 프로파일별 동작을 확인할 때만 `@ActiveProfiles`를 붙인다.
+- `@IntegrationTest`의 웹 환경은 기본 `MOCK`이다. Tomcat 밸브처럼 실제 서버에서만 동작하는 기능을 확인할 때만 `@IntegrationTest(webEnvironment = RANDOM_PORT)`로 띄운다. `@SpringBootTest`를 직접 붙이지 않는다.
 - 테스트 MySQL 컨테이너는 JVM 안에서 하나를 공유한다. 컨텍스트가 닫히면 컨테이너도 멈추므로 app 통합 테스트에서는 `@DirtiesContext`를 쓰지 않는다.
 - `api`의 웹 계층 테스트는 테스트 전용 설정(`ApiTestApplication`)으로 `@WebMvcTest`를 사용하며, DB 없이 실행된다.
 
