@@ -1,6 +1,7 @@
 -- 로컬 개발용 샘플 영화. local 프로파일에서만 실행된다. (application-local.yml의 spring.flyway.locations)
 -- 운영·테스트 DB에는 들어가지 않는다. YouTube 영상 ID는 실제 영상이 아닌 자리표시자라 플레이어에서는 재생되지 않는다.
 -- 반복 실행(R__) migration이라 이 파일을 고치면 다음 실행 때 다시 적용된다. 그래서 몇 번을 실행해도 결과가 같게 쓴다.
+-- 샘플 영화를 이 파일에서 빼도 DB에서는 지워지지 않는다. 그때는 docker compose down -v로 로컬 DB를 초기화한다.
 
 INSERT INTO movie (youtube_video_id, youtube_channel_id, youtube_channel_title, thumbnail_url,
                    title, short_description, running_time_seconds, average_rating, review_count, approved_at)
@@ -31,8 +32,12 @@ ON DUPLICATE KEY UPDATE youtube_channel_title = sample.youtube_channel_title,
                         review_count          = sample.review_count,
                         approved_at           = sample.approved_at;
 
--- 장르 연결은 영상 ID로 영화를 찾아 넣고, 이미 있으면 건너뛴다
-INSERT IGNORE INTO movie_genre (movie_id, genre_id)
+-- 장르 연결은 파일에서 빼거나 바꾼 것이 남지 않도록 샘플 영화의 연결만 지운 뒤 지금 정의대로 다시 넣는다
+DELETE
+FROM movie_genre
+WHERE movie_id IN (SELECT id FROM movie WHERE youtube_video_id LIKE 'local-sample-%');
+
+INSERT INTO movie_genre (movie_id, genre_id)
 SELECT id, 1 FROM movie WHERE youtube_video_id = 'local-sample-001'
 UNION ALL SELECT id, 5 FROM movie WHERE youtube_video_id = 'local-sample-001'
 UNION ALL SELECT id, 3 FROM movie WHERE youtube_video_id = 'local-sample-002'

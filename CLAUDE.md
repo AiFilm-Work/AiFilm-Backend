@@ -203,7 +203,7 @@ Migration:
 로컬 샘플 데이터:
 
 - 로컬 개발용 샘플은 `infra/src/main/resources/db/sample/`의 반복 실행 migration(`R__*.sql`)에 둔다. `application-local.yml`의 `spring.flyway.locations`에만 이 경로가 있어서 운영 DB에는 들어가지 않는다.
-- `R__` 파일은 내용이 바뀌면 다시 실행되므로 몇 번 실행해도 결과가 같게 쓴다. (`ON DUPLICATE KEY UPDATE`, `INSERT IGNORE`)
+- `R__` 파일은 내용이 바뀌면 다시 실행되므로 몇 번 실행해도 결과가 같게 쓴다. 행은 `ON DUPLICATE KEY UPDATE`로 덮어쓰고, 연결 테이블처럼 빠진 항목이 남으면 안 되는 데이터는 샘플 범위만 지운 뒤 다시 넣는다.
 - 샘플 YouTube 영상 ID는 `local-sample-*` 자리표시자라 실제로 재생되지 않는다.
 - `@IntegrationTest`는 `spring.flyway.locations`를 `db/migration`으로 덮어써 테스트 DB에 샘플을 넣지 않는다.
 - 터미널에서 로컬 DB를 조회할 때는 `docker compose exec mysql mysql -uaifilm -p --default-character-set=utf8mb4 aifilm`으로 접속한다. 문자셋을 지정하지 않으면 한글이 `?`로 보인다(저장된 값은 정상).
