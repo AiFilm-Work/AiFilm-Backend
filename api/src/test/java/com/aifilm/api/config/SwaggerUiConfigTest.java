@@ -11,10 +11,13 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest
+// 컨트롤러 없이 Swagger UI 리소스 설정만 올린다. 컨트롤러가 늘어나도 이 테스트는 영향을 받지 않는다.
+@WebMvcTest(useDefaultFilters = false)
+@Import(SwaggerUiConfig.class)
 class SwaggerUiConfigTest {
 
 	@Autowired
