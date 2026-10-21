@@ -1,11 +1,17 @@
 package com.aifilm.infra.mysql.home;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.stereotype.Repository;
 
 import com.aifilm.domain.home.HomeBanner;
 import com.aifilm.domain.home.HomeBannerRepository;
+import com.aifilm.domain.home.VisibleHomeBanner;
+import com.aifilm.domain.movie.ScreeningStatus;
+import com.aifilm.domain.movie.YoutubeAvailabilityStatus;
 
 // domain의 HomeBannerRepository를 Spring Data JPA로 구현한다.
 @Repository
@@ -17,6 +23,12 @@ public class HomeBannerRepositoryImpl implements HomeBannerRepository {
 	@Override
 	public HomeBanner save(HomeBanner banner) {
 		return jpaHomeBannerRepository.save(banner);
+	}
+
+	@Override
+	public List<VisibleHomeBanner> findVisible(LocalDateTime now) {
+		return jpaHomeBannerRepository.findVisibleBanners(
+			now, ScreeningStatus.ACTIVE, YoutubeAvailabilityStatus.AVAILABLE);
 	}
 
 }
