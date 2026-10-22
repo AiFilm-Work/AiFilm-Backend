@@ -173,6 +173,7 @@ Swagger UI 정적 파일(`api/src/main/resources/static/swagger-ui/`):
 
 - swagger-ui dist(v5.33.1) 원본이다. 직접 고치지 않는다.
 - 원본에서 바꾼 곳은 `swagger-ui.html`(`index.html` 이름 변경, 리소스를 `/static/swagger-ui/` 절대 경로로)과 `swagger-initializer.js`의 `url` 두 군데다. 버전을 올릴 때는 dist를 통째로 바꾼 뒤 이 두 곳만 다시 고친다.
+- 정적 파일은 `SwaggerUiConfig`에서 `Cache-Control: no-cache`와 파일 내용으로 만든 ETag로 내려 보낸다. jar 안 파일의 시각은 빌드할 때 1980-02-01로 고정되어(Gradle 9 기본값) `Last-Modified`로는 배포 전후를 구분할 수 없으므로 쓰지 않는다. 경로를 추가하거나 바꿀 때도 이 설정을 함께 건다.
 
 ## Code Convention
 
