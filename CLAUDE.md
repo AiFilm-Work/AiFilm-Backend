@@ -77,6 +77,8 @@ main 클래스(`AiFilmApplication`)와 실행 설정(`application*.yml`)만 둔�
 - Scheduler 자체에는 비즈니스 로직을 작성하지 않는다.
 - 실행 진입점(main 클래스)은 `app`에만 둔다. `api`·`worker`에는 main 클래스와 `application*.yml`을 두지 않는다.
 - JPA 스캔 같은 영역별 설정은 메인 클래스가 아니라 해당 모듈의 `@Configuration` 클래스에 둔다. 메인 클래스에 두면 슬라이스 테스트에도 강제로 적용된다.
+- API 요청을 처리하는 서비스는 `api`의 기능 패키지(예: `com.aifilm.api.home`)에 두고, 요청·응답 DTO는 그 아래 `dto`에 둔다.
+- 비즈니스 판단에 쓰는 현재 시각(예: 배너 노출 기간)은 `LocalDateTime.now()` 대신 `Clock` 빈을 주입받아 `LocalDateTime.now(clock)`으로 구한다. 테스트에서 시각을 고정하기 위해서다. `Clock` 빈은 API와 Worker가 함께 쓰므로 `infra`의 `ClockConfig`에 있다.
 
 Entity / Repository:
 
@@ -87,6 +89,14 @@ Entity / Repository:
 - 엔티티는 기본 생성자를 `protected`로 두고, 생성자(또는 빌더)에서 필수 값과 생성 규칙을 검증한다. 상태·집계 값의 시작값은 호출자가 아니라 엔티티가 정한다.
 - `created_at`, `updated_at`은 엔티티의 `@PrePersist`, `@PreUpdate`에서 채운다.
 - `TEXT` 컬럼은 `@Column(columnDefinition = "TEXT")`를 붙인다. 없으면 `ddl-auto=validate`가 `VARCHAR`를 기대해 실패한다.
+
+조회 모델:
+
+- 화면에 보여주는 조회는 엔티티를 꺼내 조립하지 않는다. 화면에 필요한 값만 담은 조회 모델(record)과 조회 메서드를 `domain`에 두고, `infra`에서 JPQL 생성자 표현식(`select new ...`)이나 네이티브 쿼리로 필요한 컬럼만 가져온다. (예: `MovieCard`, `VisibleHomeBanner`, `MovieGenre`) 엔티티를 넘기면 지연 로딩 때문에 항목마다 쿼리가 늘어나거나(N+1), 트랜잭션 밖에서 `LazyInitializationException`이 난다.
+- 목록 항목의 연관 데이터(예: 영화별 장르)는 항목마다 조회하지 않는다. ID를 모아 `IN` 한 번으로 가져와 메모리에서 나눈다. 넘길 ID가 없으면 쿼리 없이 빈 목록을 반환한다. (`IN ()`은 SQL 문법 오류)
+- 개수 제한은 Spring Data의 `Limit`으로 넘긴다(SQL `LIMIT`이 된다). 더보기 여부는 한 개 더 조회해 판단하고 `COUNT` 쿼리를 따로 두지 않는다.
+- 사용자에게 보여주는 영화 조회는 노출 조건(`screening_status = ACTIVE`, `youtube_availability_status = AVAILABLE`)을 쿼리에서 건다. 조건 값은 리포지토리 구현에서 넘기고, domain 메서드 이름에는 노출 가능한 영화만 조회한다는 뜻을 드러낸다. (예: `findLatestScreenable`)
+- 여러 쿼리로 한 화면을 만드는 서비스는 `@Transactional(readOnly = true)` 하나로 묶어 같은 시점의 데이터를 읽게 한다.
 
 ## API Response
 
@@ -130,12 +140,13 @@ API 문서는 Controller 테스트(Spring REST Docs + restdocs-api-spec)로 만�
 → api jar의 static/swagger-ui/openapi3.yaml → /swagger-ui.html
 ```
 
-- API를 추가하거나 바꾸면 `@ControllerTest` 문서화 테스트를 함께 작성한다. 성공 케이스와 실패 케이스(4xx)를 각각 문서화한다.
+- API를 추가하거나 바꾸면 `@ControllerTest` 문서화 테스트를 함께 작성한다. 성공 케이스와 실패 케이스(4xx)를 각각 문서화한다. 입력값도 인증도 없어 4xx가 생기지 않는 API는 성공 케이스만 문서화하고, 그 이유를 테스트 주석에 적는다.
 - Controller와 DTO에 Swagger(springdoc) 어노테이션을 쓰지 않는다. 문서 내용은 테스트의 `document()`에만 적는다.
 - 응답 필드는 모두 문서화한다. 문서와 실제 응답이 다르면 테스트가 실패하며, 이를 피하려고 `relaxedResponseFields`를 쓰지 않는다.
 - 같은 method + path의 성공·실패 테스트에는 같은 `tag`, `summary`, `description`을 준다. 스펙에서 하나의 API 아래 응답 코드별로 합쳐진다.
-- `document()` 식별자는 영문 kebab-case `{리소스}-{동작}[-{실패 상황}]`로 짓고 겹치지 않게 한다. (예: `docs-sample-get`, `docs-sample-get-not-found`)
-- 테스트 소스 `com.aifilm.api.docs`의 샘플 컨트롤러와 테스트는 문서화 파이프라인 확인용이다. 첫 실제 API를 문서화할 때 삭제한다.
+- `document()` 식별자는 영문 kebab-case `{리소스}-{동작}[-{실패 상황}]`로 짓고 겹치지 않게 한다. (예: `home-get`, `movie-get-not-found`)
+- null이 올 수 있는 필드는 타입을 지정하고 `optional()`을 붙인다. (예: `fieldWithPath("data.sections[].movies[].rankPosition").type(JsonFieldType.NUMBER).optional()`) 타입을 지정하지 않으면 예시 값이 모두 null일 때 스펙에 null 타입으로 나간다.
+- 문서화 테스트의 예시 데이터는 배열마다 항목을 하나 이상 넣는다. 배열이 비면 그 안의 필드를 응답에서 찾지 못해 문서화가 실패한다.
 
 import 규칙:
 
@@ -183,12 +194,21 @@ Migration:
 - ERD(2026-09-28 스냅샷)는 출발점이다. 옮기면서 바꾼 점(컬럼 이름·타입, 빠진 제약, 아직 없는 테이블 참조)은 migration 파일 위 주석에 남긴다.
 - main에 머지되기 전, 로컬에만 적용된 migration은 고쳐도 된다. 고친 뒤 `docker compose down -v`로 로컬 DB를 초기화한다.
 - main에 머지된 migration은 CD 배포 때 운영 RDS에 적용되므로 수정하지 않는다. 스키마 변경은 새 migration 파일로 추가한다.
-- 제약과 인덱스에는 이름을 붙인다: `pk_<테이블>`, `uk_<테이블>_<컬럼>`, `fk_<테이블>_<참조 테이블>`, `idx_<테이블>_<컬럼>`, `ck_<테이블>_<컬럼>`.
+- 제약과 인덱스에는 이름을 붙인다: `pk_<테이블>`, `uk_<테이블>_<컬럼>`, `fk_<테이블>_<참조 테이블>`, `idx_<테이블>_<컬럼>`, `ck_<테이블>_<컬럼>`. 컬럼이 여러 개면 컬럼 이름을 줄여 이어 붙이고 64자를 넘지 않게 한다. (예: `idx_movie_screening_availability_approved_at`)
 - 테이블은 `ENGINE = InnoDB`, `utf8mb4`, `utf8mb4_unicode_ci`를 명시한다.
 - PK는 `BIGINT AUTO_INCREMENT`이고 엔티티는 `GenerationType.IDENTITY`를 쓴다.
 - 같은 데이터가 두 번 들어가면 안 되는 컬럼(예: `movie.youtube_video_id`)은 애플리케이션 검사와 별개로 DB UNIQUE로 막는다.
 - 기준 데이터(예: 장르)는 클라이언트가 ID로 참조하므로 migration에서 ID를 지정해 넣는다. 추가할 때는 기존 파일을 고치지 않고 새 migration으로 다음 ID를 넣는다.
+- 운영 데이터는 migration에 넣지 않는다(ID를 지정하는 기준 데이터는 예외). 관리자 API가 생기기 전에는 운영 데이터를 Session Manager에서 SQL로 넣으므로, 엔티티 검증과 같은 규칙을 DB의 `CHECK`, `UNIQUE`, `FK`로도 걸고 리포지토리 테스트에서 SQL로 직접 넣어 막히는지 확인한다.
 - 한 migration 파일에는 하나의 목적만 담는다. MySQL DDL은 트랜잭션으로 묶이지 않아서, 중간에 실패하면 일부만 적용된 채 `flyway_schema_history`에 실패 기록이 남고 이전 버전 앱도 뜨지 못한다. 이때는 남은 변경을 손으로 정리하고 `flyway repair`로 기록을 지운다.
+
+인덱스:
+
+- 인덱스는 실행 계획 근거가 있을 때 migration으로 추가한다. 로컬 DB에 대량 데이터(예: 10만 행)를 넣고 `EXPLAIN ANALYZE`로 추가 전후를 비교하며, 수치는 커밋 본문에 남긴다. 판단은 `EXPLAIN`의 추정치(`rows`, `filtered`)가 아니라 `EXPLAIN ANALYZE`의 실제 읽은 행과 시간으로 한다.
+- 정렬 + `LIMIT` 조회의 복합 인덱스는 `=` 조건 컬럼, `ORDER BY` 컬럼 순서로 만든다. 그러면 정렬된 순서대로 읽다가 `LIMIT`에서 멈춘다(`Using filesort`가 사라진다). 정렬 방향이 모두 같으면 오름차순 인덱스를 거꾸로 읽는다(`Backward index scan`).
+- `ORDER BY` 마지막의 `id`는 인덱스에 넣지 않는다. InnoDB는 보조 인덱스 끝에 PK를 붙여 정렬에도 쓴다.
+- 인덱스를 추가하면 `FlywayMigrationTest`에서 이름과 컬럼 순서를 `information_schema.statistics`로 확인한다. 컬럼 순서가 바뀌면 정렬에 쓰지 못한다.
+- 측정용으로 로컬에 임시 인덱스를 만들었다면, 같은 이름의 migration을 적용하기 전에 지운다. 남아 있으면 앱이 `Duplicate key name`으로 뜨지 않는다.
 
 롤백을 고려한 스키마 변경:
 
@@ -328,10 +348,15 @@ Worker에서는 특히 다음을 검증한다.
 - `@IntegrationTest`의 웹 환경은 기본 `MOCK`이다. Tomcat 밸브처럼 실제 서버에서만 동작하는 기능을 확인할 때만 `@IntegrationTest(webEnvironment = RANDOM_PORT)`로 띄운다. `@SpringBootTest`를 직접 붙이지 않는다.
 - 테스트 MySQL 컨테이너는 JVM 안에서 하나를 공유한다. 컨텍스트가 닫히면 컨테이너도 멈추므로 app 통합 테스트에서는 `@DirtiesContext`를 쓰지 않는다.
 - `api`의 웹 계층 테스트는 테스트 전용 설정(`ApiTestApplication`)으로 `@WebMvcTest`를 사용하며, DB 없이 실행된다.
+- `@WebMvcTest`(`@ControllerTest`)에는 테스트할 컨트롤러를 `controllers`로 지정한다. 지정하지 않으면 모든 컨트롤러가 올라와서, 서비스가 필요한 컨트롤러가 생기는 순간 관계없는 테스트까지 뜨지 않는다. 컨트롤러 없이 설정만 확인하는 테스트는 `useDefaultFilters = false`와 `@Import(<설정 클래스>)`를 쓴다.
+- `api`의 서비스는 domain 리포지토리를 Mockito로 대신하는 단위 테스트(`@ExtendWith(MockitoExtension.class)`)로 검증한다. 현재 시각은 `Clock.fixed(...)`로 고정한다.
 - `domain`의 엔티티 생성 규칙은 스프링 없이 단위 테스트한다.
 - `infra`의 리포지토리 테스트에는 `@RepositoryTest`를 붙이고 테스트할 `<엔티티>RepositoryImpl`을 `@Import`한다. `@DataJpaTest`로 JPA 빈만 띄우고, Testcontainers MySQL에 Flyway migration을 적용한 뒤 `ddl-auto=validate`로 엔티티와 스키마가 같은지 검증한다. 각 테스트는 끝나면 롤백된다.
 - `infra` 테스트는 테스트 전용 설정(`InfraTestApplication`)을 쓴다. 엔티티가 `domain`에 있어서 `@EntityScan("com.aifilm.domain")`으로 스캔 범위를 지정한다.
-- DB 제약(UNIQUE, FK) 위반은 예외 타입이 감싸는 위치에 따라 달라지므로, 원인 예외(`SQLIntegrityConstraintViolationException`)로 확인한다.
+- DB 제약(UNIQUE, FK) 위반은 예외 타입이 감싸는 위치에 따라 달라지므로, 원인 예외(`SQLIntegrityConstraintViolationException`)로 확인한다. `CHECK` 위반은 원인 예외의 메시지에 제약 이름(`ck_...`)이 들어 있는지로 확인한다.
+- 노출 상태·평점처럼 바꾸는 domain 메서드가 아직 없는 값은 리포지토리 테스트에서 `MovieFixture`의 SQL 헬퍼(`changeStatus`, `changeRating`)로 바꾼다.
+- 데이터 양과 상관없이 쿼리 수가 같아야 하는 조회 API(홈, 목록)는 app 통합 테스트에서 SELECT 수를 검증한다. MySQL `Com_select` 카운터(`SHOW GLOBAL STATUS`)를 요청 전후로 읽어 차이를 세고, 같은 MySQL을 쓰는 다른 컨텍스트의 잡음을 피하려고 여러 번 재서 최솟값을 쓴다. 데이터가 적을 때와 많을 때의 값이 같은지, 그리고 기대한 쿼리 수인지 확인한다. (예: `HomeApiIntegrationTest`)
+- app 통합 테스트에서 데이터가 필요하면 JDBC로 넣는다(app은 JPA에 컴파일 의존이 없다). 컨테이너를 다른 테스트와 함께 쓰므로 고유 접두사(예: `home-it-`)를 붙여 넣고 `@AfterEach`에서 지운다.
 
 작업 완료 전 최소한 변경된 모듈의 테스트를 실행한다.
 테스트를 실행하지 못한 경우 그 사실과 이유를 명시한다.

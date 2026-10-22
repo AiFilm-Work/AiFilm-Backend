@@ -1,4 +1,4 @@
--- 로컬 개발용 샘플 영화. local 프로파일에서만 실행된다. (application-local.yml의 spring.flyway.locations)
+-- 로컬 개발용 샘플 영화와 홈 배너. local 프로파일에서만 실행된다. (application-local.yml의 spring.flyway.locations)
 -- 운영·테스트 DB에는 들어가지 않는다. YouTube 영상 ID는 실제 영상이 아닌 자리표시자라 플레이어에서는 재생되지 않는다.
 -- 반복 실행(R__) migration이라 이 파일을 고치면 다음 실행 때 다시 적용된다. 그래서 몇 번을 실행해도 결과가 같게 쓴다.
 -- 샘플 영화를 이 파일에서 빼도 DB에서는 지워지지 않는다. 그때는 docker compose down -v로 로컬 DB를 초기화한다.
@@ -51,3 +51,15 @@ UNION ALL SELECT id, 1 FROM movie WHERE youtube_video_id = 'local-sample-006'
 UNION ALL SELECT id, 3 FROM movie WHERE youtube_video_id = 'local-sample-007'
 UNION ALL SELECT id, 7 FROM movie WHERE youtube_video_id = 'local-sample-008'
 UNION ALL SELECT id, 6 FROM movie WHERE youtube_video_id = 'local-sample-008';
+
+-- 홈 배너도 장르 연결과 같은 이유로 샘플 영화의 배너만 지운 뒤 다시 넣는다.
+-- 반복 실행 migration은 버전 migration(V3) 다음에 적용되므로 home_banner_movie가 이미 있다.
+-- 미리보기 구간(시작 + 길이)은 각 영화의 러닝타임 안에 둔다.
+DELETE
+FROM home_banner_movie
+WHERE movie_id IN (SELECT id FROM movie WHERE youtube_video_id LIKE 'local-sample-%');
+
+INSERT INTO home_banner_movie (movie_id, display_order, start_seconds, preview_duration_seconds)
+SELECT id, 1, 20, 10 FROM movie WHERE youtube_video_id = 'local-sample-002'
+UNION ALL SELECT id, 2, 0, 10 FROM movie WHERE youtube_video_id = 'local-sample-001'
+UNION ALL SELECT id, 3, 30, 10 FROM movie WHERE youtube_video_id = 'local-sample-007';

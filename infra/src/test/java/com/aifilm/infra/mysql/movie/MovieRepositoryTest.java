@@ -14,8 +14,11 @@ import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.context.annotation.Import;
 
 import com.aifilm.domain.movie.Movie;
+import com.aifilm.domain.movie.MovieCard;
 import com.aifilm.domain.movie.MovieRepository;
 import com.aifilm.domain.movie.ScreeningStatus;
+import com.aifilm.domain.movie.YoutubeAvailabilityStatus;
+import com.aifilm.infra.support.MovieFixture;
 import com.aifilm.infra.support.RepositoryTest;
 
 @RepositoryTest
@@ -80,6 +83,88 @@ class MovieRepositoryTest {
 			movieRepository.save(movie("unknown-genre", Set.of(999L)));
 			entityManager.flush();
 		}).hasRootCauseInstanceOf(SQLIntegrityConstraintViolationException.class);
+	}
+
+	@Test
+	@DisplayName("최신 등록작은 노출 중이고 재생 가능한 영화만 승인 시각이 늦은 순서로 limit개까지 조회한다")
+	void findsLatestScreenableMovies() {
+		Long oldest = save("latest-1", day(1));
+		Long middle = save("latest-2", day(2));
+		Long newest = save("latest-3", day(3));
+		Long hidden = save("latest-hidden", day(4));
+		Long unavailable = save("latest-unavailable", day(5));
+		MovieFixture.changeStatus(entityManager, hidden, ScreeningStatus.HIDDEN, YoutubeAvailabilityStatus.AVAILABLE);
+		MovieFixture.changeStatus(entityManager, unavailable,
+			ScreeningStatus.ACTIVE, YoutubeAvailabilityStatus.UNAVAILABLE);
+
+		assertThat(movieRepository.findLatestScreenable(10))
+			.extracting(MovieCard::movieId)
+			.containsExactly(newest, middle, oldest);
+		assertThat(movieRepository.findLatestScreenable(2))
+			.extracting(MovieCard::movieId)
+			.containsExactly(newest, middle);
+	}
+
+	@Test
+	@DisplayName("승인 시각이 같으면 나중에 등록한 영화가 먼저 나온다")
+	void ordersSameApprovedAtByLatestId() {
+		Long first = save("same-time-1", day(1));
+		Long second = save("same-time-2", day(1));
+
+		assertThat(movieRepository.findLatestScreenable(10))
+			.extracting(MovieCard::movieId)
+			.containsExactly(second, first);
+	}
+
+	@Test
+	@DisplayName("카드에는 목록에 보여줄 제목, 썸네일, 평점, 리뷰 수가 담긴다")
+	void mapsCardColumns() {
+		Long movieId = save("card", day(1));
+		MovieFixture.changeRating(entityManager, movieId, "4.50", 12);
+
+		MovieCard card = movieRepository.findLatestScreenable(1).getFirst();
+
+		assertThat(card.movieId()).isEqualTo(movieId);
+		assertThat(card.title()).isEqualTo("영화 card");
+		assertThat(card.thumbnailUrl()).isEqualTo("https://example.com/card.jpg");
+		assertThat(card.averageRating()).isEqualByComparingTo("4.50");
+		assertThat(card.reviewCount()).isEqualTo(12);
+	}
+
+	@Test
+	@DisplayName("평점 TOP은 평점이 높은 순서로, 같으면 리뷰 수, 그것도 같으면 승인 시각이 늦은 순서로 조회한다")
+	void findsTopRatedScreenableMovies() {
+		Long best = saveRated("rating-best", day(1), "4.80", 10);
+		Long moreReviews = saveRated("rating-more-reviews", day(1), "4.50", 30);
+		Long newer = saveRated("rating-newer", day(3), "4.50", 10);
+		Long older = saveRated("rating-older", day(2), "4.50", 10);
+		Long lowest = saveRated("rating-lowest", day(5), "3.00", 100);
+		Long hidden = saveRated("rating-hidden", day(1), "5.00", 100);
+		Long unavailable = saveRated("rating-unavailable", day(1), "5.00", 100);
+		MovieFixture.changeStatus(entityManager, hidden, ScreeningStatus.HIDDEN, YoutubeAvailabilityStatus.AVAILABLE);
+		MovieFixture.changeStatus(entityManager, unavailable,
+			ScreeningStatus.ACTIVE, YoutubeAvailabilityStatus.UNAVAILABLE);
+
+		assertThat(movieRepository.findTopRatedScreenable(10))
+			.extracting(MovieCard::movieId)
+			.containsExactly(best, moreReviews, newer, older, lowest);
+		assertThat(movieRepository.findTopRatedScreenable(3))
+			.extracting(MovieCard::movieId)
+			.containsExactly(best, moreReviews, newer);
+	}
+
+	private Long save(String youtubeVideoId, LocalDateTime approvedAt) {
+		return entityManager.persistAndFlush(MovieFixture.movie(youtubeVideoId, approvedAt, 1L)).getId();
+	}
+
+	private Long saveRated(String youtubeVideoId, LocalDateTime approvedAt, String averageRating, long reviewCount) {
+		Long movieId = save(youtubeVideoId, approvedAt);
+		MovieFixture.changeRating(entityManager, movieId, averageRating, reviewCount);
+		return movieId;
+	}
+
+	private static LocalDateTime day(int dayOfMonth) {
+		return LocalDateTime.of(2026, 10, dayOfMonth, 12, 0);
 	}
 
 }

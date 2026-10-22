@@ -15,7 +15,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 // api 모듈의 @WebMvcTest가 테스트 전용 설정(ApiTestApplication)으로 뜨는지 검증한다.
 // 컨트롤러 문서화 테스트의 기반이므로, DB(DataSource, JPA) 없이 웹 계층만 올라오는지도 함께 확인한다.
-@WebMvcTest
+// 확인 대상은 테스트 설정과 자동 설정이라 컨트롤러는 올리지 않는다. (컨트롤러는 각 테스트가 controllers로 지정한다)
+@WebMvcTest(useDefaultFilters = false)
 class ApiWebMvcTestConfigurationTest {
 
 	@Autowired

@@ -13,7 +13,9 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(properties = "aifilm.cors.allowed-origins=https://aifilm.life, http://localhost:3000")
+// CORS 확인용 테스트 컨트롤러만 올린다. 지정하지 않으면 모든 컨트롤러가 올라와 서비스가 필요한 컨트롤러 때문에 뜨지 않는다.
+@WebMvcTest(controllers = CorsTestController.class,
+	properties = "aifilm.cors.allowed-origins=https://aifilm.life, http://localhost:3000")
 class CorsConfigTest {
 
 	private static final String ALLOWED_ORIGIN = "https://aifilm.life";
