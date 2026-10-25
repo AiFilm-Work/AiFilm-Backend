@@ -97,6 +97,7 @@ Entity / Repository:
 - 개수 제한은 Spring Data의 `Limit`으로 넘긴다(SQL `LIMIT`이 된다). 더보기 여부는 한 개 더 조회해 판단하고 `COUNT` 쿼리를 따로 두지 않는다.
 - 사용자에게 보여주는 영화 조회는 노출 조건(`screening_status = ACTIVE`, `youtube_availability_status = AVAILABLE`)을 쿼리에서 건다. 조건 값은 리포지토리 구현에서 넘기고, domain 메서드 이름에는 노출 가능한 영화만 조회한다는 뜻을 드러낸다. (예: `findLatestScreenable`)
 - 여러 쿼리로 한 화면을 만드는 서비스는 `@Transactional(readOnly = true)` 하나로 묶어 같은 시점의 데이터를 읽게 한다.
+- 단건 조회에서 "없음"과 "볼 수 없음"을 다르게 응답해야 하면(예: 영화 상세) 노출 조건을 쿼리에 걸지 않고 노출 상태를 함께 조회해, domain 조회 모델의 판단 메서드(예: `MovieDetail.isScreenable()`)로 구분한다. 목록 조회는 지금처럼 쿼리에서 거른다.
 
 ## API Response
 
@@ -113,6 +114,8 @@ Entity / Repository:
 - `data`는 성공 결과만 담는다. 입력값 검증 실패의 필드별 사유는 `errors`(`field`, `reason`)에 담고, `errors`는 값이 없으면 응답에서 빠진다.
 - 응답 본문의 `status`와 실제 HTTP 상태 코드를 일치시킨다.
 - `data`에는 Entity가 아니라 응답 DTO를 담는다.
+- 응답의 날짜·시각은 서버 시간대(KST)의 `LocalDateTime`을 오프셋 없이 초까지 내린다. DTO 필드에 `@JsonFormat(pattern = ApiDateTimeFormat.PATTERN)`(`yyyy-MM-dd'T'HH:mm:ss`)을 붙인다. DB는 마이크로초까지 저장해서, 붙이지 않으면 값마다 소수점 아래 자릿수가 달라진다.
+- 아직 채울 수 없는 응답 필드(예: 로그인 전의 영화 상세 `viewer`)는 항상 null로 미리 넣지 않고 기능이 생길 때 추가한다. 필드 추가는 기존 클라이언트를 깨지 않는다.
 - 실패 사유는 `common`의 `ErrorReason`을 구현한 에러 코드 enum으로 표현하고, enum은 도메인별로 나눈다.
 - `ErrorReason`의 HTTP 상태는 `int`로 둔다. `common`은 스프링에 의존하지 않으므로 `HttpStatus`를 쓰지 않는다.
 - 응답 필드 순서(`status`, `code`, `message`, `data`, `errors`)는 `@JsonPropertyOrder`로 고정되어 있다. 필드나 순서를 바꾸면 `ApiResponseSerializationTest`도 함께 수정한다.
@@ -122,7 +125,8 @@ Entity / Repository:
 - 실패는 `common`의 `BusinessException`에 `ErrorReason`을 담아 던진다. 컨트롤러에서 `ResponseEntity`로 실패 응답을 직접 만들지 않는다.
 - 외부 API, DB 예외를 감쌀 때는 `BusinessException(errorReason, cause)`로 원인 예외를 넘긴다.
 - HTTP 응답 변환은 `api`의 `GlobalExceptionHandler`에서만 한다. `ResponseEntityExceptionHandler`를 상속하므로 스프링 MVC 예외는 따로 `@ExceptionHandler`를 만들지 않고 해당 `handleXxx`를 오버라이드한다.
-- 에러 코드는 `{도메인}_{HTTP상태}_{순번}` 형식이다. (예: `FILM_404_1`) 도메인에 속하지 않는 오류는 `CommonErrorCode`(`COMMON_*`)를 쓴다.
+- 에러 코드는 `{도메인}_{HTTP상태}_{순번}` 형식이다. (예: `MOVIE_404_1`) 도메인에 속하지 않는 오류는 `CommonErrorCode`(`COMMON_*`)를 쓴다.
+- 도메인 에러 코드 enum은 `domain`의 해당 도메인 패키지에 둔다. (예: `com.aifilm.domain.movie.MovieErrorCode`) `domain`은 `common`에 의존하므로 `ErrorReason`을 구현할 수 있고, API와 Worker가 함께 쓴다.
 - 에러 코드 enum의 HTTP 상태는 `HttpStatusCodes` 상수를 쓴다. 없는 상태는 상수부터 추가한다.
 - 입력값 검증은 컨트롤러의 `@Valid`와 파라미터 제약 어노테이션으로만 한다. 서비스에 `@Validated`를 붙이지 않는다. (`ConstraintViolationException`은 처리하지 않으므로 500이 된다)
 - 응답에 예외 메시지, 스택트레이스, 사용자가 보낸 값을 담지 않는다.
@@ -147,6 +151,7 @@ API 문서는 Controller 테스트(Spring REST Docs + restdocs-api-spec)로 만�
 - `document()` 식별자는 영문 kebab-case `{리소스}-{동작}[-{실패 상황}]`로 짓고 겹치지 않게 한다. (예: `home-get`, `movie-get-not-found`)
 - null이 올 수 있는 필드는 타입을 지정하고 `optional()`을 붙인다. (예: `fieldWithPath("data.sections[].movies[].rankPosition").type(JsonFieldType.NUMBER).optional()`) 타입을 지정하지 않으면 예시 값이 모두 null일 때 스펙에 null 타입으로 나간다.
 - 문서화 테스트의 예시 데이터는 배열마다 항목을 하나 이상 넣는다. 배열이 비면 그 안의 필드를 응답에서 찾지 못해 문서화가 실패한다.
+- 실패 응답은 `status`, `code`, `message`와 `data`(`JsonFieldType.NULL`)를 문서화한다. 경로 변수는 `pathParameters(parameterWithName(...))`로 문서화하고, 같은 API의 테스트끼리 태그·요약·설명·경로 변수를 공유하는 빌더 메서드(`ResourceSnippetParametersBuilder`)로 묶는다. (예: `MovieControllerTest`)
 
 import 규칙:
 
