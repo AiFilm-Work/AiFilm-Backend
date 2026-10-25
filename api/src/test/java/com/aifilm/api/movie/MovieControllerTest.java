@@ -25,6 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.epages.restdocs.apispec.ResourceSnippetParameters;
 import com.epages.restdocs.apispec.ResourceSnippetParametersBuilder;
+import com.epages.restdocs.apispec.SimpleType;
 
 import com.aifilm.api.genre.dto.GenreResponse;
 import com.aifilm.api.movie.dto.MovieBadgeResponse;
@@ -144,7 +145,8 @@ class MovieControllerTest {
 			.tag(TAG)
 			.summary(SUMMARY)
 			.description(DESCRIPTION)
-			.pathParameters(parameterWithName("movieId").description("영화 ID (1 이상)"));
+			// 타입을 지정하지 않으면 경로 변수가 스펙에 string으로 나간다
+			.pathParameters(parameterWithName("movieId").type(SimpleType.INTEGER).description("영화 ID (1 이상)"));
 	}
 
 	private static List<FieldDescriptor> failureFields() {

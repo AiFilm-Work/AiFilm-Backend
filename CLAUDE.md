@@ -151,7 +151,7 @@ API 문서는 Controller 테스트(Spring REST Docs + restdocs-api-spec)로 만�
 - `document()` 식별자는 영문 kebab-case `{리소스}-{동작}[-{실패 상황}]`로 짓고 겹치지 않게 한다. (예: `home-get`, `movie-get-not-found`)
 - null이 올 수 있는 필드는 타입을 지정하고 `optional()`을 붙인다. (예: `fieldWithPath("data.sections[].movies[].rankPosition").type(JsonFieldType.NUMBER).optional()`) 타입을 지정하지 않으면 예시 값이 모두 null일 때 스펙에 null 타입으로 나간다.
 - 문서화 테스트의 예시 데이터는 배열마다 항목을 하나 이상 넣는다. 배열이 비면 그 안의 필드를 응답에서 찾지 못해 문서화가 실패한다.
-- 실패 응답은 `status`, `code`, `message`와 `data`(`JsonFieldType.NULL`)를 문서화한다. 경로 변수는 `pathParameters(parameterWithName(...))`로 문서화하고, 같은 API의 테스트끼리 태그·요약·설명·경로 변수를 공유하는 빌더 메서드(`ResourceSnippetParametersBuilder`)로 묶는다. (예: `MovieControllerTest`)
+- 실패 응답은 `status`, `code`, `message`와 `data`(`JsonFieldType.NULL`)를 문서화한다. 경로 변수는 `pathParameters(parameterWithName(...))`로 문서화하고, 숫자면 `.type(SimpleType.INTEGER)`를 붙인다(지정하지 않으면 스펙에 string으로 나간다). 같은 API의 테스트끼리 태그·요약·설명·경로 변수를 공유하는 빌더 메서드(`ResourceSnippetParametersBuilder`)로 묶는다. (예: `MovieControllerTest`)
 
 import 규칙:
 
