@@ -30,6 +30,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.aifilm.support.IntegrationTest;
+import com.aifilm.support.SelectCounter;
 
 // 홈 API를 실제 MySQL까지 붙여 호출해 응답 구성과, 영화·배너가 늘어도 조회 쿼리 수가 그대로인지 확인한다.
 // app은 JPA에 컴파일 의존이 없어서 테스트 데이터는 JDBC로 넣고, 쿼리 수는 MySQL이 실제로 받은 SELECT 수(Com_select)로 센다.
@@ -43,8 +44,6 @@ class HomeApiIntegrationTest {
 	private static final String HOME = "/api/v1/home";
 	private static final String VIDEO_ID_PREFIX = "home-it-";
 	private static final LocalDateTime APPROVED_BASE = LocalDateTime.of(2026, 10, 1, 12, 0);
-	// 같은 MySQL을 쓰는 다른 테스트 컨텍스트의 커넥션 초기화 쿼리가 섞일 수 있어서 여러 번 재고 가장 작은 값을 쓴다
-	private static final int MEASURE_TIMES = 3;
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -117,37 +116,14 @@ class HomeApiIntegrationTest {
 		long withManyMovies = measureSelects();
 
 		log.info("홈 조회 1회당 SELECT 수: 영화 3편·배너 1개 {}번, 영화 30편·배너 3개 {}번 (카운터 조회 보정 {}번 포함)",
-			withFewMovies, withManyMovies, countingOverhead());
+			withFewMovies, withManyMovies, new SelectCounter(dataSource).overhead());
 		// 배너, 배너 장르, 장르 메뉴, 최신 등록작, 평점 TOP을 쿼리 한 번씩으로 조회한다
 		assertThat(withFewMovies).isEqualTo(5);
 		assertThat(withManyMovies).isEqualTo(withFewMovies);
 	}
 
 	private long measureSelects() throws Exception {
-		// 첫 호출의 준비 작업이 섞이지 않게 한 번 먼저 호출한다
-		mockMvc.perform(get(HOME)).andExpect(status().isOk());
-		long fewest = Long.MAX_VALUE;
-		for (int i = 0; i < MEASURE_TIMES; i++) {
-			long before = selectCount();
-			mockMvc.perform(get(HOME)).andExpect(status().isOk());
-			fewest = Math.min(fewest, selectCount() - before);
-		}
-		return fewest;
-	}
-
-	// 카운터를 읽는 문장 자체가 세어지는지 확인하려고, 요청 없이 두 번 읽은 차이를 로그에 함께 남긴다
-	private long countingOverhead() throws SQLException {
-		long before = selectCount();
-		return selectCount() - before;
-	}
-
-	private long selectCount() throws SQLException {
-		try (Connection connection = dataSource.getConnection();
-			Statement statement = connection.createStatement();
-			ResultSet rows = statement.executeQuery("SHOW GLOBAL STATUS LIKE 'Com_select'")) {
-			rows.next();
-			return rows.getLong("Value");
-		}
+		return new SelectCounter(dataSource).measure(() -> mockMvc.perform(get(HOME)).andExpect(status().isOk()));
 	}
 
 	private void insertMovie(int number, String averageRating, Long... genreIds) throws SQLException {
