@@ -3,6 +3,7 @@ package com.aifilm.api.home.dto;
 import java.math.BigDecimal;
 import java.util.List;
 
+import com.aifilm.api.genre.dto.GenreResponse;
 import com.aifilm.domain.home.VisibleHomeBanner;
 
 // 홈 상단 배너 하나. 프론트는 youtubeVideoId의 startSeconds부터 previewDurationSeconds 동안 미리보기를 재생한다.

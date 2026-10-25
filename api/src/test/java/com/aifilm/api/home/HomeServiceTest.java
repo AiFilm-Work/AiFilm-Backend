@@ -19,7 +19,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import com.aifilm.api.home.dto.GenreResponse;
+import com.aifilm.api.genre.dto.GenreResponse;
 import com.aifilm.api.home.dto.HomeBannerResponse;
 import com.aifilm.api.home.dto.HomeMovieResponse;
 import com.aifilm.api.home.dto.HomeResponse;

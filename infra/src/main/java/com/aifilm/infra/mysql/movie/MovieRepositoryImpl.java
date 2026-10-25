@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import com.aifilm.domain.movie.Movie;
 import com.aifilm.domain.movie.MovieCard;
+import com.aifilm.domain.movie.MovieDetail;
 import com.aifilm.domain.movie.MovieRepository;
 import com.aifilm.domain.movie.ScreeningStatus;
 import com.aifilm.domain.movie.YoutubeAvailabilityStatus;
@@ -41,6 +42,11 @@ public class MovieRepositoryImpl implements MovieRepository {
 	public List<MovieCard> findTopRatedScreenable(int limit) {
 		return jpaMovieRepository.findTopRatedCards(
 			ScreeningStatus.ACTIVE, YoutubeAvailabilityStatus.AVAILABLE, Limit.of(limit));
+	}
+
+	@Override
+	public Optional<MovieDetail> findDetailById(Long id) {
+		return jpaMovieRepository.findDetailById(id);
 	}
 
 }

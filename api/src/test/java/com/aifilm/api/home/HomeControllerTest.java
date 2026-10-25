@@ -21,7 +21,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.epages.restdocs.apispec.ResourceSnippetParameters;
 
-import com.aifilm.api.home.dto.GenreResponse;
+import com.aifilm.api.genre.dto.GenreResponse;
 import com.aifilm.api.home.dto.HomeBannerResponse;
 import com.aifilm.api.home.dto.HomeMovieResponse;
 import com.aifilm.api.home.dto.HomeResponse;
