@@ -16,4 +16,7 @@ public interface MovieRepository {
 	// 노출 중이고 재생 가능한 영화를 평점 → 리뷰 수 → 승인 시각 순서로 limit개까지 조회한다
 	List<MovieCard> findTopRatedScreenable(int limit);
 
+	// 노출 상태와 상관없이 영화 한 편의 상세 값을 조회한다. 보여줄 수 있는지는 호출하는 쪽이 상태로 판단한다
+	Optional<MovieDetail> findDetailById(Long id);
+
 }
