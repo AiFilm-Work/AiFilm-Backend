@@ -32,8 +32,8 @@ class FlywayMigrationTest {
 
 	@ParameterizedTest
 	@ValueSource(strings = {"flyway_schema_history", "genre", "movie", "movie_genre", "home_banner_movie",
-		"youtube_movie"})
-	@DisplayName("앱이 뜨면 Flyway가 실행되어 스키마 이력과 영화·장르·홈 배너·YouTube 영화 테이블이 생긴다")
+		"youtube_movie_source"})
+	@DisplayName("앱이 뜨면 Flyway가 실행되어 스키마 이력과 영화·장르·홈 배너·YouTube 출처 테이블이 생긴다")
 	void createsTables(String tableName) throws SQLException {
 		try (Connection connection = dataSource.getConnection();
 			ResultSet tables = connection.getMetaData()

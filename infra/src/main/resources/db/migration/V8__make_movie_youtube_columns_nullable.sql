@@ -1,4 +1,4 @@
--- 이번 배포부터 앱은 youtube 값을 youtube_movie에만 쓴다. movie에 남은 youtube 컬럼 중
+-- 이번 배포부터 앱은 youtube 값을 youtube_movie_source에만 쓴다. movie에 남은 youtube 컬럼 중
 -- DEFAULT 없이 NOT NULL인 세 컬럼은 앱의 movie INSERT를 막으므로 NULL을 허용한다.
 -- (DEFAULT가 있는 나머지 youtube 컬럼은 값 없이 INSERT해도 실패하지 않아 그대로 둔다)
 --

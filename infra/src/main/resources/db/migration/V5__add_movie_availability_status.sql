@@ -1,4 +1,4 @@
--- 영화를 출처와 무관한 공통 정보(movie)와 출처별 정보(youtube_movie, 이후 original_movie)로 나누기 위한 첫 단계.
+-- 영화를 출처와 무관한 공통 정보(movie)와 출처별 정보(youtube_movie_source, 이후 uploaded_movie_source)로 나누기 위한 첫 단계.
 -- 공통 정보에 availability_status를 추가한다.
 -- - availability_status: 출처와 무관하게 지금 재생할 수 있는지. 홈·목록이 출처 테이블을 조인하지 않고 노출 여부를 판단하게 한다.
 --   한 영화에 출처가 여러 개 붙을 수 있으므로(YouTube + 업로드 원본), 출처들의 상태를 종합한 결과를 서비스가 갱신한다.

@@ -32,9 +32,9 @@ ON DUPLICATE KEY UPDATE youtube_channel_title = sample.youtube_channel_title,
                         review_count          = sample.review_count,
                         approved_at           = sample.approved_at;
 
--- YouTube 값은 youtube_movie에도 넣는다. 전환 기간에는 운영 데이터처럼 movie의 youtube 컬럼과 함께 쓴다.
--- (movie의 youtube 컬럼을 지우는 배포에서 이 파일도 youtube_movie만 쓰도록 바꾼다)
-INSERT INTO youtube_movie (movie_id, youtube_video_id, youtube_channel_id, youtube_channel_title)
+-- YouTube 값은 youtube_movie_source에도 넣는다. 전환 기간에는 운영 데이터처럼 movie의 youtube 컬럼과 함께 쓴다.
+-- (movie의 youtube 컬럼을 지우는 배포에서 이 파일도 youtube_movie_source만 쓰도록 바꾼다)
+INSERT INTO youtube_movie_source (movie_id, youtube_video_id, youtube_channel_id, youtube_channel_title)
 SELECT *
 FROM (SELECT id, youtube_video_id, youtube_channel_id, youtube_channel_title
       FROM movie
