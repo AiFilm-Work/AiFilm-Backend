@@ -78,7 +78,7 @@ class MovieApiIntegrationTest {
 
 	@ParameterizedTest
 	@CsvSource({"HIDDEN, AVAILABLE", "ACTIVE, UNAVAILABLE"})
-	@DisplayName("숨김 처리됐거나 YouTube에서 재생할 수 없는 영화는 404와 MOVIE_404_2로 응답한다")
+	@DisplayName("숨김 처리됐거나 재생할 수 없는 영화는 404와 MOVIE_404_2로 응답한다")
 	void respondsUnavailable(String screeningStatus, String availabilityStatus) throws Exception {
 		long movieId = insertMovie("unavailable", screeningStatus, availabilityStatus, 1L);
 
@@ -111,7 +111,7 @@ class MovieApiIntegrationTest {
 			PreparedStatement insert = connection.prepareStatement("""
 				INSERT INTO movie (youtube_video_id, youtube_channel_id, youtube_channel_title, thumbnail_url, title,
 				                   youtube_description, short_description, running_time_seconds, youtube_published_at,
-				                   approved_at, screening_status, youtube_availability_status)
+				                   approved_at, screening_status, availability_status)
 				VALUES (?, 'channel-1', 'AI 스튜디오', 'https://example.com/thumbnail.jpg', '상세 테스트',
 				        'YouTube 원본 설명', '짧은 소개', 600, ?, ?, ?, ?)
 				""", Statement.RETURN_GENERATED_KEYS)) {

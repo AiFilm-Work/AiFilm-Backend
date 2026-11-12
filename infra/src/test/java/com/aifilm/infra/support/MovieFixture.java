@@ -8,7 +8,7 @@ import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 
 import com.aifilm.domain.movie.Movie;
 import com.aifilm.domain.movie.ScreeningStatus;
-import com.aifilm.domain.movie.YoutubeAvailabilityStatus;
+import com.aifilm.domain.movie.AvailabilityStatus;
 
 // 리포지토리 테스트에서 영화를 만들고 상태를 바꾸는 헬퍼. 테스트마다 다른 값은 영상 ID, 승인 시각, 장르뿐이다.
 public final class MovieFixture {
@@ -31,10 +31,12 @@ public final class MovieFixture {
 	}
 
 	// 노출 상태를 바꾸는 도메인 메서드가 아직 없어서 SQL로 바꾼다. 영화는 먼저 DB에 반영(flush)해 둬야 한다.
+	// 노출 조건은 availability_status만 보므로 youtube_availability_status는 바꾸지 않는다.
+	// 두 값이 엇갈려도 availability_status를 따라 걸러지는지가 함께 확인된다.
 	public static void changeStatus(TestEntityManager entityManager, Long movieId, ScreeningStatus screeningStatus,
-		YoutubeAvailabilityStatus availabilityStatus) {
+		AvailabilityStatus availabilityStatus) {
 		entityManager.getEntityManager()
-			.createNativeQuery("UPDATE movie SET screening_status = ?, youtube_availability_status = ? WHERE id = ?")
+			.createNativeQuery("UPDATE movie SET screening_status = ?, availability_status = ? WHERE id = ?")
 			.setParameter(1, screeningStatus.name())
 			.setParameter(2, availabilityStatus.name())
 			.setParameter(3, movieId)

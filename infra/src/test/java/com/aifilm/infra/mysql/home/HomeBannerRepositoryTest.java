@@ -18,8 +18,8 @@ import org.springframework.context.annotation.Import;
 import com.aifilm.domain.home.HomeBanner;
 import com.aifilm.domain.home.HomeBannerRepository;
 import com.aifilm.domain.home.VisibleHomeBanner;
+import com.aifilm.domain.movie.AvailabilityStatus;
 import com.aifilm.domain.movie.ScreeningStatus;
-import com.aifilm.domain.movie.YoutubeAvailabilityStatus;
 import com.aifilm.infra.support.MovieFixture;
 import com.aifilm.infra.support.RepositoryTest;
 
@@ -124,11 +124,11 @@ class HomeBannerRepositoryTest {
 		Long hiddenMovie = saveMovie("hidden-movie");
 		saveBanner(banner(hiddenMovie, 1));
 		MovieFixture.changeStatus(entityManager, hiddenMovie, ScreeningStatus.HIDDEN,
-			YoutubeAvailabilityStatus.AVAILABLE);
+			AvailabilityStatus.AVAILABLE);
 		Long unavailableMovie = saveMovie("unavailable-movie");
 		saveBanner(banner(unavailableMovie, 1));
 		MovieFixture.changeStatus(entityManager, unavailableMovie, ScreeningStatus.ACTIVE,
-			YoutubeAvailabilityStatus.UNAVAILABLE);
+			AvailabilityStatus.UNAVAILABLE);
 
 		assertThat(homeBannerRepository.findVisible(NOW))
 			.extracting(VisibleHomeBanner::bannerId)

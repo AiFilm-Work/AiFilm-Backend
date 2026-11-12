@@ -34,6 +34,7 @@ class MovieTest {
 		Movie movie = validMovie().build();
 
 		assertThat(movie.getScreeningStatus()).isEqualTo(ScreeningStatus.ACTIVE);
+		assertThat(movie.getAvailabilityStatus()).isEqualTo(AvailabilityStatus.AVAILABLE);
 		assertThat(movie.getYoutubeAvailabilityStatus()).isEqualTo(YoutubeAvailabilityStatus.AVAILABLE);
 		assertThat(movie.getPrivacyStatus()).isEqualTo(PrivacyStatus.PUBLIC);
 		assertThat(movie.isEmbeddable()).isTrue();

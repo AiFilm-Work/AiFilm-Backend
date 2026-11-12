@@ -29,11 +29,11 @@ import com.aifilm.api.movie.dto.MovieStatisticsResponse;
 import com.aifilm.common.error.BusinessException;
 import com.aifilm.domain.genre.GenreRepository;
 import com.aifilm.domain.genre.MovieGenre;
+import com.aifilm.domain.movie.AvailabilityStatus;
 import com.aifilm.domain.movie.MovieDetail;
 import com.aifilm.domain.movie.MovieErrorCode;
 import com.aifilm.domain.movie.MovieRepository;
 import com.aifilm.domain.movie.ScreeningStatus;
-import com.aifilm.domain.movie.YoutubeAvailabilityStatus;
 
 @ExtendWith(MockitoExtension.class)
 class MovieServiceTest {
@@ -60,7 +60,7 @@ class MovieServiceTest {
 	@DisplayName("상세 조회는 영화 정보에 장르와 통계를 붙여 응답한다")
 	void getsMovieDetail() {
 		given(movieRepository.findDetailById(MOVIE_ID)).willReturn(Optional.of(
-			detail(NOW.minusDays(30), ScreeningStatus.ACTIVE, YoutubeAvailabilityStatus.AVAILABLE)));
+			detail(NOW.minusDays(30), ScreeningStatus.ACTIVE, AvailabilityStatus.AVAILABLE)));
 		given(genreRepository.findByMovieIds(List.of(MOVIE_ID))).willReturn(List.of(
 			new MovieGenre(MOVIE_ID, 1L, "SF"),
 			new MovieGenre(MOVIE_ID, 5L, "로맨스")));
@@ -78,7 +78,7 @@ class MovieServiceTest {
 	@DisplayName("승인 후 7일이 지나기 전인 영화에는 NEW 배지를 붙인다")
 	void addsNewBadgeWithinSevenDays() {
 		given(movieRepository.findDetailById(MOVIE_ID)).willReturn(Optional.of(
-			detail(NOW.minusDays(6), ScreeningStatus.ACTIVE, YoutubeAvailabilityStatus.AVAILABLE)));
+			detail(NOW.minusDays(6), ScreeningStatus.ACTIVE, AvailabilityStatus.AVAILABLE)));
 
 		MovieDetailResponse response = movieService.getMovieDetail(MOVIE_ID);
 
@@ -98,8 +98,8 @@ class MovieServiceTest {
 
 	@ParameterizedTest
 	@CsvSource({"HIDDEN, AVAILABLE", "UNAVAILABLE, AVAILABLE", "ACTIVE, UNAVAILABLE"})
-	@DisplayName("숨김 처리됐거나 YouTube에서 재생할 수 없는 영화면 MOVIE_UNAVAILABLE로 실패하고 장르를 조회하지 않는다")
-	void failsWhenMovieNotScreenable(ScreeningStatus screeningStatus, YoutubeAvailabilityStatus availabilityStatus) {
+	@DisplayName("숨김 처리됐거나 재생할 수 없는 영화면 MOVIE_UNAVAILABLE로 실패하고 장르를 조회하지 않는다")
+	void failsWhenMovieNotScreenable(ScreeningStatus screeningStatus, AvailabilityStatus availabilityStatus) {
 		given(movieRepository.findDetailById(MOVIE_ID)).willReturn(Optional.of(
 			detail(NOW.minusDays(30), screeningStatus, availabilityStatus)));
 
@@ -110,7 +110,7 @@ class MovieServiceTest {
 	}
 
 	private static MovieDetail detail(LocalDateTime approvedAt, ScreeningStatus screeningStatus,
-		YoutubeAvailabilityStatus availabilityStatus) {
+		AvailabilityStatus availabilityStatus) {
 		return new MovieDetail(MOVIE_ID, "네온 메모리", "기억은 사라져도, 사랑은 남는다.", "YouTube 원본 설명",
 			"https://example.com/neon-memory.jpg", "abc123", "AI Film Studio", 766,
 			LocalDateTime.of(2025, 1, 10, 13, 20), approvedAt, new BigDecimal("4.70"), 21, 30,

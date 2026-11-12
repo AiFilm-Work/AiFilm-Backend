@@ -9,15 +9,15 @@ import java.time.LocalDateTime;
 public record MovieDetail(Long movieId, String title, String shortDescription, String youtubeDescription,
 	String thumbnailUrl, String youtubeVideoId, String youtubeChannelTitle, int runningTimeSeconds,
 	LocalDateTime youtubePublishedAt, LocalDateTime approvedAt, BigDecimal averageRating, long reviewCount,
-	long totalViewCount, ScreeningStatus screeningStatus, YoutubeAvailabilityStatus youtubeAvailabilityStatus) {
+	long totalViewCount, ScreeningStatus screeningStatus, AvailabilityStatus availabilityStatus) {
 
 	// 승인 후 이 기간이 지나기 전까지 NEW 배지를 붙인다
 	public static final Duration NEW_BADGE_PERIOD = Duration.ofDays(7);
 
-	// 노출 중(ACTIVE)이고 YouTube에서 재생할 수 있는(AVAILABLE) 영화만 사용자에게 보여준다
+	// 노출 중(ACTIVE)이고 출처와 상관없이 재생할 수 있는(AVAILABLE) 영화만 사용자에게 보여준다
 	public boolean isScreenable() {
 		return screeningStatus == ScreeningStatus.ACTIVE
-			&& youtubeAvailabilityStatus == YoutubeAvailabilityStatus.AVAILABLE;
+			&& availabilityStatus == AvailabilityStatus.AVAILABLE;
 	}
 
 	// 승인 시각부터 기간이 꽉 차는 순간(정확히 7일)부터는 NEW가 아니다

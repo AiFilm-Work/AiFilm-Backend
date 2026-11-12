@@ -13,12 +13,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.context.annotation.Import;
 
+import com.aifilm.domain.movie.AvailabilityStatus;
 import com.aifilm.domain.movie.Movie;
 import com.aifilm.domain.movie.MovieCard;
 import com.aifilm.domain.movie.MovieDetail;
 import com.aifilm.domain.movie.MovieRepository;
 import com.aifilm.domain.movie.ScreeningStatus;
-import com.aifilm.domain.movie.YoutubeAvailabilityStatus;
 import com.aifilm.infra.support.MovieFixture;
 import com.aifilm.infra.support.RepositoryTest;
 
@@ -95,9 +95,9 @@ class MovieRepositoryTest {
 		Long newest = save("latest-3", day(3));
 		Long hidden = save("latest-hidden", day(4));
 		Long unavailable = save("latest-unavailable", day(5));
-		MovieFixture.changeStatus(entityManager, hidden, ScreeningStatus.HIDDEN, YoutubeAvailabilityStatus.AVAILABLE);
+		MovieFixture.changeStatus(entityManager, hidden, ScreeningStatus.HIDDEN, AvailabilityStatus.AVAILABLE);
 		MovieFixture.changeStatus(entityManager, unavailable,
-			ScreeningStatus.ACTIVE, YoutubeAvailabilityStatus.UNAVAILABLE);
+			ScreeningStatus.ACTIVE, AvailabilityStatus.UNAVAILABLE);
 
 		assertThat(movieRepository.findLatestScreenable(10))
 			.extracting(MovieCard::movieId)
@@ -143,9 +143,9 @@ class MovieRepositoryTest {
 		Long lowest = saveRated("rating-lowest", day(5), "3.00", 100);
 		Long hidden = saveRated("rating-hidden", day(1), "5.00", 100);
 		Long unavailable = saveRated("rating-unavailable", day(1), "5.00", 100);
-		MovieFixture.changeStatus(entityManager, hidden, ScreeningStatus.HIDDEN, YoutubeAvailabilityStatus.AVAILABLE);
+		MovieFixture.changeStatus(entityManager, hidden, ScreeningStatus.HIDDEN, AvailabilityStatus.AVAILABLE);
 		MovieFixture.changeStatus(entityManager, unavailable,
-			ScreeningStatus.ACTIVE, YoutubeAvailabilityStatus.UNAVAILABLE);
+			ScreeningStatus.ACTIVE, AvailabilityStatus.UNAVAILABLE);
 
 		assertThat(movieRepository.findTopRatedScreenable(10))
 			.extracting(MovieCard::movieId)
@@ -178,7 +178,7 @@ class MovieRepositoryTest {
 		assertThat(detail.reviewCount()).isEqualTo(21);
 		assertThat(detail.totalViewCount()).isZero();
 		assertThat(detail.screeningStatus()).isEqualTo(ScreeningStatus.ACTIVE);
-		assertThat(detail.youtubeAvailabilityStatus()).isEqualTo(YoutubeAvailabilityStatus.AVAILABLE);
+		assertThat(detail.availabilityStatus()).isEqualTo(AvailabilityStatus.AVAILABLE);
 	}
 
 	@Test
@@ -186,14 +186,14 @@ class MovieRepositoryTest {
 	void findsDetailRegardlessOfStatus() {
 		Long hidden = save("detail-hidden", day(1));
 		Long unavailable = save("detail-unavailable", day(1));
-		MovieFixture.changeStatus(entityManager, hidden, ScreeningStatus.HIDDEN, YoutubeAvailabilityStatus.AVAILABLE);
+		MovieFixture.changeStatus(entityManager, hidden, ScreeningStatus.HIDDEN, AvailabilityStatus.AVAILABLE);
 		MovieFixture.changeStatus(entityManager, unavailable,
-			ScreeningStatus.ACTIVE, YoutubeAvailabilityStatus.UNAVAILABLE);
+			ScreeningStatus.ACTIVE, AvailabilityStatus.UNAVAILABLE);
 
 		assertThat(movieRepository.findDetailById(hidden).orElseThrow().screeningStatus())
 			.isEqualTo(ScreeningStatus.HIDDEN);
-		assertThat(movieRepository.findDetailById(unavailable).orElseThrow().youtubeAvailabilityStatus())
-			.isEqualTo(YoutubeAvailabilityStatus.UNAVAILABLE);
+		assertThat(movieRepository.findDetailById(unavailable).orElseThrow().availabilityStatus())
+			.isEqualTo(AvailabilityStatus.UNAVAILABLE);
 	}
 
 	@Test

@@ -24,7 +24,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// 관리자가 승인해 서비스에 등록된 AI 영화. 영상은 저장하지 않고 YouTube 영상 ID로 임베드 재생한다.
+// 관리자가 승인해 서비스에 등록된 AI 영화.
 @Entity
 @Table(name = "movie")
 @Getter
@@ -61,6 +61,11 @@ public class Movie {
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 20)
 	private ScreeningStatus screeningStatus;
+
+	// 출처와 상관없는, 결론적으로 재생 가능한지 여부. 전환 기간이라 youtubeAvailabilityStatus와 함께 둔다
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, length = 20)
+	private AvailabilityStatus availabilityStatus;
 
 	@Column(nullable = false, length = 2048)
 	private String thumbnailUrl;
@@ -106,7 +111,7 @@ public class Movie {
 	@Column(name = "genre_id", nullable = false)
 	private Set<Long> genreIds = new LinkedHashSet<>();
 
-	// 승인된 영화를 등록할 때 쓴다. YouTube 상태는 등록 시점에 재생 가능한 것으로 시작하고, 평점·조회수는 0에서 시작한다.
+	// 승인된 영화를 등록할 때 쓴다. YouTube 상태와 재생 가능 여부는 등록 시점에 재생 가능한 것으로 시작하고, 평점·조회수는 0에서 시작한다.
 	@Builder
 	private Movie(String youtubeVideoId, String youtubeChannelId, String youtubeChannelTitle, String thumbnailUrl,
 		String title, String youtubeDescription, String shortDescription, int runningTimeSeconds,
@@ -135,6 +140,7 @@ public class Movie {
 		this.youtubeDeleted = false;
 		this.youtubeAvailabilityStatus = YoutubeAvailabilityStatus.AVAILABLE;
 		this.screeningStatus = ScreeningStatus.ACTIVE;
+		this.availabilityStatus = AvailabilityStatus.AVAILABLE;
 		this.averageRating = BigDecimal.ZERO;
 		this.reviewCount = 0;
 		this.totalViewCount = 0;

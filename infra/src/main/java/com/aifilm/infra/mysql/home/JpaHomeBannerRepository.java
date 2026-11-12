@@ -9,8 +9,8 @@ import org.springframework.data.repository.query.Param;
 
 import com.aifilm.domain.home.HomeBanner;
 import com.aifilm.domain.home.VisibleHomeBanner;
+import com.aifilm.domain.movie.AvailabilityStatus;
 import com.aifilm.domain.movie.ScreeningStatus;
-import com.aifilm.domain.movie.YoutubeAvailabilityStatus;
 
 // Spring Data JPA 리포지토리. 서비스 코드는 이 인터페이스 대신 domain의 HomeBannerRepository를 쓴다.
 public interface JpaHomeBannerRepository extends JpaRepository<HomeBanner, Long> {
@@ -27,11 +27,11 @@ public interface JpaHomeBannerRepository extends JpaRepository<HomeBanner, Long>
 		  and (b.startsAt is null or b.startsAt <= :now)
 		  and (b.endsAt is null or b.endsAt > :now)
 		  and m.screeningStatus = :screeningStatus
-		  and m.youtubeAvailabilityStatus = :availabilityStatus
+		  and m.availabilityStatus = :availabilityStatus
 		order by b.displayOrder asc, b.id asc
 		""")
 	List<VisibleHomeBanner> findVisibleBanners(@Param("now") LocalDateTime now,
 		@Param("screeningStatus") ScreeningStatus screeningStatus,
-		@Param("availabilityStatus") YoutubeAvailabilityStatus availabilityStatus);
+		@Param("availabilityStatus") AvailabilityStatus availabilityStatus);
 
 }
