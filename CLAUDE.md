@@ -234,6 +234,7 @@ Migration:
   2. 기존 데이터를 옮기고 앱이 새 컬럼만 읽게 한다.
   3. 롤백할 일이 없다고 판단한 다음 배포에서 기존 컬럼을 지운다.
 - 영화 출처 분리(#39)의 전환 기간: `movie`의 옛 YouTube 컬럼(`youtube_video_id` 등)과 `youtube_availability_status`를 지우기 전까지, 운영 SQL로 영화를 넣거나 상태를 바꿀 때 `movie`의 옛 YouTube 컬럼과 `youtube_movie_source`를, `youtube_availability_status`와 `availability_status`를 함께 쓴다. 롤백된 이전 앱이 옛 컬럼을 읽기 때문이다. 앱 코드는 `youtube_movie_source`와 `availability_status`만 읽고 쓴다.
+- 전환 기간에 롤백했다가 다시 배포할 때도 `SELECT COUNT(*) FROM movie WHERE availability_status <> youtube_availability_status;`가 0건인지 확인한다. 불일치가 있으면 롤백 중에 옛 컬럼만 바뀐 것이므로 `youtube_availability_status` 기준으로 `availability_status`를 맞춘다.
 
 로컬 샘플 데이터:
 
