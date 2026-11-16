@@ -153,9 +153,8 @@ class HomeBannerRepositoryTest {
 		assertThat(banner.previewDurationSeconds()).isEqualTo(15);
 	}
 
-	private Long saveMovie(String youtubeVideoId) {
-		return entityManager.persistAndFlush(
-			MovieFixture.movie(youtubeVideoId, LocalDateTime.of(2026, 10, 20, 12, 0), 1L)).getId();
+	private Long saveMovie(String key) {
+		return MovieFixture.saveWithYoutube(entityManager, key, LocalDateTime.of(2026, 10, 20, 12, 0), 1L);
 	}
 
 	private static HomeBanner.HomeBannerBuilder banner(Long movieId, int displayOrder) {

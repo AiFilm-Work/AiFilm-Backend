@@ -5,9 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.sql.SQLIntegrityConstraintViolationException;
 import java.time.LocalDateTime;
-import java.util.Set;
 
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
@@ -32,34 +30,21 @@ class MovieRepositoryTest {
 	@Autowired
 	private TestEntityManager entityManager;
 
-	private static Movie movie(String youtubeVideoId, Set<Long> genreIds) {
-		return Movie.builder()
-			.youtubeVideoId(youtubeVideoId)
-			.youtubeChannelId("channel-1")
-			.youtubeChannelTitle("AI 스튜디오")
-			.thumbnailUrl("https://example.com/neon-memory.jpg")
-			.title("네온 메모리")
-			.youtubeDescription("기억과 사랑을 주제로 제작한 AI 단편영화입니다.")
-			.shortDescription("기억은 사라져도, 사랑은 남는다.")
-			.runningTimeSeconds(766)
-			.youtubePublishedAt(LocalDateTime.of(2025, 1, 10, 13, 20))
-			.approvedAt(LocalDateTime.of(2026, 10, 20, 12, 0))
-			.genreIds(genreIds)
-			.build();
-	}
-
 	@Test
-	@DisplayName("영화를 장르와 함께 저장하고 다시 조회한다")
-	void savesAndFindsMovieWithGenres() {
-		Movie saved = movieRepository.save(movie("abc123", Set.of(1L, 3L)));
+	void 영화를_장르와_함께_저장하고_다시_조회할_수_있다() {
+		// given
+		Movie movie = MovieFixture.movie("with-genres", day(1), 1L, 3L);
+
+		// when
+		Movie saved = movieRepository.save(movie);
 		// 1차 캐시가 아니라 DB에서 다시 읽어 오도록 비운다
 		entityManager.flush();
 		entityManager.clear();
-
 		Movie found = movieRepository.findById(saved.getId()).orElseThrow();
 
-		assertThat(found.getYoutubeVideoId()).isEqualTo("abc123");
-		assertThat(found.getRunningTimeSeconds()).isEqualTo(766);
+		// then
+		assertThat(found.getTitle()).isEqualTo("영화 with-genres");
+		assertThat(found.getRunningTimeSeconds()).isEqualTo(600);
 		assertThat(found.getScreeningStatus()).isEqualTo(ScreeningStatus.ACTIVE);
 		assertThat(found.getGenreIds()).containsExactlyInAnyOrder(1L, 3L);
 		assertThat(found.getCreatedAt()).isNotNull();
@@ -67,29 +52,20 @@ class MovieRepositoryTest {
 	}
 
 	@Test
-	@DisplayName("같은 YouTube 영상은 두 번 저장되지 않는다")
-	void rejectsDuplicateYoutubeVideoId() {
-		movieRepository.save(movie("dup-video", Set.of(1L)));
-		entityManager.flush();
+	void 없는_장르_ID로는_영화를_저장할_수_없다() {
+		// given
+		Movie movie = MovieFixture.movie("unknown-genre", day(1), 999L);
 
+		// when & then
 		assertThatThrownBy(() -> {
-			movieRepository.save(movie("dup-video", Set.of(2L)));
+			movieRepository.save(movie);
 			entityManager.flush();
 		}).hasRootCauseInstanceOf(SQLIntegrityConstraintViolationException.class);
 	}
 
 	@Test
-	@DisplayName("없는 장르 ID로는 영화를 저장할 수 없다")
-	void rejectsUnknownGenreId() {
-		assertThatThrownBy(() -> {
-			movieRepository.save(movie("unknown-genre", Set.of(999L)));
-			entityManager.flush();
-		}).hasRootCauseInstanceOf(SQLIntegrityConstraintViolationException.class);
-	}
-
-	@Test
-	@DisplayName("최신 등록작은 노출 중이고 재생 가능한 영화만 승인 시각이 늦은 순서로 limit개까지 조회한다")
-	void findsLatestScreenableMovies() {
+	void 최신_등록작은_노출_중이고_재생_가능한_영화만_승인_시각이_늦은_순서로_limit개까지_조회한다() {
+		// given
 		Long oldest = save("latest-1", day(1));
 		Long middle = save("latest-2", day(2));
 		Long newest = save("latest-3", day(3));
@@ -99,6 +75,7 @@ class MovieRepositoryTest {
 		MovieFixture.changeStatus(entityManager, unavailable,
 			ScreeningStatus.ACTIVE, AvailabilityStatus.UNAVAILABLE);
 
+		// when & then
 		assertThat(movieRepository.findLatestScreenable(10))
 			.extracting(MovieCard::movieId)
 			.containsExactly(newest, middle, oldest);
@@ -108,24 +85,27 @@ class MovieRepositoryTest {
 	}
 
 	@Test
-	@DisplayName("승인 시각이 같으면 나중에 등록한 영화가 먼저 나온다")
-	void ordersSameApprovedAtByLatestId() {
+	void 승인_시각이_같으면_나중에_등록한_영화가_먼저_나온다() {
+		// given
 		Long first = save("same-time-1", day(1));
 		Long second = save("same-time-2", day(1));
 
+		// when & then
 		assertThat(movieRepository.findLatestScreenable(10))
 			.extracting(MovieCard::movieId)
 			.containsExactly(second, first);
 	}
 
 	@Test
-	@DisplayName("카드에는 목록에 보여줄 제목, 썸네일, 평점, 리뷰 수가 담긴다")
-	void mapsCardColumns() {
+	void 카드에는_목록에_보여줄_제목_썸네일_평점_리뷰_수가_담긴다() {
+		// given
 		Long movieId = save("card", day(1));
 		MovieFixture.changeRating(entityManager, movieId, "4.50", 12);
 
+		// when
 		MovieCard card = movieRepository.findLatestScreenable(1).getFirst();
 
+		// then
 		assertThat(card.movieId()).isEqualTo(movieId);
 		assertThat(card.title()).isEqualTo("영화 card");
 		assertThat(card.thumbnailUrl()).isEqualTo("https://example.com/card.jpg");
@@ -134,8 +114,8 @@ class MovieRepositoryTest {
 	}
 
 	@Test
-	@DisplayName("평점 TOP은 평점이 높은 순서로, 같으면 리뷰 수, 그것도 같으면 승인 시각이 늦은 순서로 조회한다")
-	void findsTopRatedScreenableMovies() {
+	void 평점_TOP은_평점이_높은_순서로_같으면_리뷰_수_그것도_같으면_승인_시각이_늦은_순서로_조회한다() {
+		// given
 		Long best = saveRated("rating-best", day(1), "4.80", 10);
 		Long moreReviews = saveRated("rating-more-reviews", day(1), "4.50", 30);
 		Long newer = saveRated("rating-newer", day(3), "4.50", 10);
@@ -147,6 +127,7 @@ class MovieRepositoryTest {
 		MovieFixture.changeStatus(entityManager, unavailable,
 			ScreeningStatus.ACTIVE, AvailabilityStatus.UNAVAILABLE);
 
+		// when & then
 		assertThat(movieRepository.findTopRatedScreenable(10))
 			.extracting(MovieCard::movieId)
 			.containsExactly(best, moreReviews, newer, older, lowest);
@@ -155,25 +136,29 @@ class MovieRepositoryTest {
 			.containsExactly(best, moreReviews, newer);
 	}
 
+	// 상세는 생성자 인자를 순서로 맞추므로, 값이 모두 채워져 있고 서로 달라야 자리가 바뀐 것을 잡을 수 있다
 	@Test
-	@DisplayName("상세 조회는 상세 화면에 보여줄 값과 노출 상태를 담는다")
-	void findsDetail() {
-		Movie saved = movieRepository.save(movie("detail", Set.of(1L)));
-		entityManager.flush();
-		MovieFixture.changeRating(entityManager, saved.getId(), "4.70", 21);
+	void 상세_조회는_상세_화면에_보여줄_값과_노출_상태를_담는다() {
+		// given
+		Long movieId = save("detail", day(20));
+		entityManager.persistAndFlush(MovieFixture.youtubeMovieSource(movieId, "detail-video",
+			"기억과 사랑을 주제로 제작한 AI 단편영화입니다.", LocalDateTime.of(2025, 1, 10, 13, 20)));
+		MovieFixture.changeRating(entityManager, movieId, "4.70", 21);
 
-		MovieDetail detail = movieRepository.findDetailById(saved.getId()).orElseThrow();
+		// when
+		MovieDetail detail = movieRepository.findDetailById(movieId).orElseThrow();
 
-		assertThat(detail.movieId()).isEqualTo(saved.getId());
-		assertThat(detail.title()).isEqualTo("네온 메모리");
-		assertThat(detail.shortDescription()).isEqualTo("기억은 사라져도, 사랑은 남는다.");
+		// then
+		assertThat(detail.movieId()).isEqualTo(movieId);
+		assertThat(detail.title()).isEqualTo("영화 detail");
+		assertThat(detail.shortDescription()).isEqualTo("짧은 소개");
 		assertThat(detail.youtubeDescription()).isEqualTo("기억과 사랑을 주제로 제작한 AI 단편영화입니다.");
-		assertThat(detail.thumbnailUrl()).isEqualTo("https://example.com/neon-memory.jpg");
-		assertThat(detail.youtubeVideoId()).isEqualTo("detail");
+		assertThat(detail.thumbnailUrl()).isEqualTo("https://example.com/detail.jpg");
+		assertThat(detail.youtubeVideoId()).isEqualTo("detail-video");
 		assertThat(detail.youtubeChannelTitle()).isEqualTo("AI 스튜디오");
-		assertThat(detail.runningTimeSeconds()).isEqualTo(766);
+		assertThat(detail.runningTimeSeconds()).isEqualTo(600);
 		assertThat(detail.youtubePublishedAt()).isEqualTo(LocalDateTime.of(2025, 1, 10, 13, 20));
-		assertThat(detail.approvedAt()).isEqualTo(LocalDateTime.of(2026, 10, 20, 12, 0));
+		assertThat(detail.approvedAt()).isEqualTo(day(20));
 		assertThat(detail.averageRating()).isEqualByComparingTo("4.70");
 		assertThat(detail.reviewCount()).isEqualTo(21);
 		assertThat(detail.totalViewCount()).isZero();
@@ -182,14 +167,15 @@ class MovieRepositoryTest {
 	}
 
 	@Test
-	@DisplayName("상세 조회는 숨기거나 재생할 수 없는 영화도 상태와 함께 조회한다")
-	void findsDetailRegardlessOfStatus() {
+	void 상세_조회는_숨기거나_재생할_수_없는_영화도_상태와_함께_조회한다() {
+		// given
 		Long hidden = save("detail-hidden", day(1));
 		Long unavailable = save("detail-unavailable", day(1));
 		MovieFixture.changeStatus(entityManager, hidden, ScreeningStatus.HIDDEN, AvailabilityStatus.AVAILABLE);
 		MovieFixture.changeStatus(entityManager, unavailable,
 			ScreeningStatus.ACTIVE, AvailabilityStatus.UNAVAILABLE);
 
+		// when & then
 		assertThat(movieRepository.findDetailById(hidden).orElseThrow().screeningStatus())
 			.isEqualTo(ScreeningStatus.HIDDEN);
 		assertThat(movieRepository.findDetailById(unavailable).orElseThrow().availabilityStatus())
@@ -197,28 +183,46 @@ class MovieRepositoryTest {
 	}
 
 	@Test
-	@DisplayName("YouTube 설명과 게시일이 없는 영화는 두 값이 null로 조회된다")
-	void findsDetailWithoutYoutubeDescription() {
-		Long movieId = save("detail-no-description", day(1));
+	void YouTube_설명과_게시일이_없는_영화는_두_값이_null로_조회된다() {
+		// given
+		Long movieId = MovieFixture.saveWithYoutube(entityManager, "detail-no-description", day(1), 1L);
 
+		// when
 		MovieDetail detail = movieRepository.findDetailById(movieId).orElseThrow();
 
+		// then
 		assertThat(detail.youtubeDescription()).isNull();
 		assertThat(detail.youtubePublishedAt()).isNull();
 	}
 
+	// 상세 쿼리가 youtube_movie_source를 LEFT JOIN하는지 지킨다. INNER JOIN이면 이 영화의 상세가 빈 값이 된다
 	@Test
-	@DisplayName("없는 영화는 빈 값으로 조회된다")
-	void findsNoDetailForMissingMovie() {
+	void YouTube_출처가_없는_영화도_상세는_조회되고_YouTube_값은_null이다() {
+		// given
+		Long movieId = save("detail-no-youtube", day(1));
+
+		// when
+		MovieDetail detail = movieRepository.findDetailById(movieId).orElseThrow();
+
+		// then
+		assertThat(detail.title()).isEqualTo("영화 detail-no-youtube");
+		assertThat(detail.youtubeVideoId()).isNull();
+		assertThat(detail.youtubeChannelTitle()).isNull();
+	}
+
+	@Test
+	void 없는_영화는_빈_값으로_조회된다() {
+		// when & then
 		assertThat(movieRepository.findDetailById(Long.MAX_VALUE)).isEmpty();
 	}
 
-	private Long save(String youtubeVideoId, LocalDateTime approvedAt) {
-		return entityManager.persistAndFlush(MovieFixture.movie(youtubeVideoId, approvedAt, 1L)).getId();
+	// 홈 섹션 조회는 movie만 읽으므로 YouTube 출처 없이 영화만 저장한다
+	private Long save(String key, LocalDateTime approvedAt) {
+		return entityManager.persistAndFlush(MovieFixture.movie(key, approvedAt, 1L)).getId();
 	}
 
-	private Long saveRated(String youtubeVideoId, LocalDateTime approvedAt, String averageRating, long reviewCount) {
-		Long movieId = save(youtubeVideoId, approvedAt);
+	private Long saveRated(String key, LocalDateTime approvedAt, String averageRating, long reviewCount) {
+		Long movieId = save(key, approvedAt);
 		MovieFixture.changeRating(entityManager, movieId, averageRating, reviewCount);
 		return movieId;
 	}

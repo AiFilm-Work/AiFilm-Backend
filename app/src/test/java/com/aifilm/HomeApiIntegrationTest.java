@@ -17,6 +17,7 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
 
@@ -34,7 +35,7 @@ import com.aifilm.support.SelectCounter;
 
 // 홈 API를 실제 MySQL까지 붙여 호출해 응답 구성과, 영화·배너가 늘어도 조회 쿼리 수가 그대로인지 확인한다.
 // app은 JPA에 컴파일 의존이 없어서 테스트 데이터는 JDBC로 넣고, 쿼리 수는 MySQL이 실제로 받은 SELECT 수(Com_select)로 센다.
-// 컨테이너를 다른 테스트와 함께 쓰므로 영상 ID에 고유 접두사를 붙이고 테스트가 끝나면 지운다.
+// 컨테이너를 다른 테스트와 함께 쓰므로 영상 ID에 고유 접두사를 붙이고, 넣은 영화는 테스트가 끝나면 지운다.
 @IntegrationTest
 @AutoConfigureMockMvc
 class HomeApiIntegrationTest {
@@ -54,14 +55,20 @@ class HomeApiIntegrationTest {
 	// 테스트 안에서 붙인 영화 번호 → DB가 만든 영화 ID
 	private final Map<Integer, Long> movieIds = new HashMap<>();
 
+	// 영상 ID는 youtube_movie_source에 있어서, 그 행을 지우고 나면 영상 ID로 영화를 찾을 수 없다. 넣을 때 모아 둔 ID로 지운다
+	// FK가 있으므로 영화를 참조하는 테이블부터 지운다
 	@AfterEach
 	void deleteTestData() throws SQLException {
-		String testMovieIds = "SELECT id FROM movie WHERE youtube_video_id LIKE '" + VIDEO_ID_PREFIX + "%'";
+		if (movieIds.isEmpty()) {
+			return;
+		}
+		String testMovieIds = movieIds.values().stream().map(String::valueOf).collect(Collectors.joining(", "));
 		try (Connection connection = dataSource.getConnection();
 			Statement statement = connection.createStatement()) {
 			statement.executeUpdate("DELETE FROM home_banner_movie WHERE movie_id IN (" + testMovieIds + ")");
 			statement.executeUpdate("DELETE FROM movie_genre WHERE movie_id IN (" + testMovieIds + ")");
-			statement.executeUpdate("DELETE FROM movie WHERE youtube_video_id LIKE '" + VIDEO_ID_PREFIX + "%'");
+			statement.executeUpdate("DELETE FROM youtube_movie_source WHERE movie_id IN (" + testMovieIds + ")");
+			statement.executeUpdate("DELETE FROM movie WHERE id IN (" + testMovieIds + ")");
 		}
 	}
 
@@ -126,22 +133,33 @@ class HomeApiIntegrationTest {
 		return new SelectCounter(dataSource).measure(() -> mockMvc.perform(get(HOME)).andExpect(status().isOk()));
 	}
 
+	// 운영 데이터처럼 공통 정보는 movie에, YouTube 값은 youtube_movie_source에 넣는다
 	private void insertMovie(int number, String averageRating, Long... genreIds) throws SQLException {
+		long movieId;
 		try (Connection connection = dataSource.getConnection();
 			PreparedStatement insert = connection.prepareStatement("""
-				INSERT INTO movie (youtube_video_id, youtube_channel_id, youtube_channel_title, thumbnail_url, title,
-				                   short_description, running_time_seconds, approved_at, average_rating)
-				VALUES (?, 'channel-1', 'AI 스튜디오', 'https://example.com/thumbnail.jpg', ?, '짧은 소개', 600, ?, ?)
+				INSERT INTO movie (thumbnail_url, title, short_description, running_time_seconds, approved_at,
+				                   average_rating)
+				VALUES ('https://example.com/thumbnail.jpg', ?, '짧은 소개', 600, ?, ?)
 				""", Statement.RETURN_GENERATED_KEYS)) {
-			insert.setString(1, VIDEO_ID_PREFIX + number);
-			insert.setString(2, "홈 테스트 " + number);
-			insert.setTimestamp(3, Timestamp.valueOf(APPROVED_BASE.plusMinutes(number)));
-			insert.setBigDecimal(4, new BigDecimal(averageRating));
+			insert.setString(1, "홈 테스트 " + number);
+			insert.setTimestamp(2, Timestamp.valueOf(APPROVED_BASE.plusMinutes(number)));
+			insert.setBigDecimal(3, new BigDecimal(averageRating));
 			insert.executeUpdate();
 			try (ResultSet keys = insert.getGeneratedKeys()) {
 				keys.next();
-				movieIds.put(number, keys.getLong(1));
+				movieId = keys.getLong(1);
 			}
+		}
+		movieIds.put(number, movieId);
+		try (Connection connection = dataSource.getConnection();
+			PreparedStatement insert = connection.prepareStatement("""
+				INSERT INTO youtube_movie_source (movie_id, youtube_video_id, youtube_channel_id, youtube_channel_title)
+				VALUES (?, ?, 'channel-1', 'AI 스튜디오')
+				""")) {
+			insert.setLong(1, movieId);
+			insert.setString(2, VIDEO_ID_PREFIX + number);
+			insert.executeUpdate();
 		}
 		addGenre(number, genreIds);
 	}

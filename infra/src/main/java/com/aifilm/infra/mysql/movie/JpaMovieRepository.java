@@ -39,13 +39,15 @@ public interface JpaMovieRepository extends JpaRepository<Movie, Long> {
 	List<MovieCard> findTopRatedCards(@Param("screeningStatus") ScreeningStatus screeningStatus,
 		@Param("availabilityStatus") AvailabilityStatus availabilityStatus, Limit limit);
 
-	// 상세는 없는 영화와 볼 수 없는 영화를 구분해야 해서 노출 조건을 걸지 않고 상태 컬럼까지 함께 조회한다
+	// 상세는 없는 영화와 볼 수 없는 영화를 구분해야 해서 노출 조건을 걸지 않고 상태 컬럼까지 함께 조회한다.
+	// YouTube 값은 youtube_movie_source에 있다. YouTube 출처가 없는 영화도 상세가 "없음"이 되지 않게 movie 기준으로 LEFT JOIN한다
 	@Query("""
-		select new com.aifilm.domain.movie.MovieDetail(m.id, m.title, m.shortDescription, m.youtubeDescription,
-		       m.thumbnailUrl, m.youtubeVideoId, m.youtubeChannelTitle, m.runningTimeSeconds, m.youtubePublishedAt,
+		select new com.aifilm.domain.movie.MovieDetail(m.id, m.title, m.shortDescription, y.youtubeDescription,
+		       m.thumbnailUrl, y.youtubeVideoId, y.youtubeChannelTitle, m.runningTimeSeconds, y.youtubePublishedAt,
 		       m.approvedAt, m.averageRating, m.reviewCount, m.totalViewCount, m.screeningStatus,
 		       m.availabilityStatus)
 		from Movie m
+		    left join YoutubeMovieSource y on y.movieId = m.id
 		where m.id = :id
 		""")
 	Optional<MovieDetail> findDetailById(@Param("id") Long id);
