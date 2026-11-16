@@ -32,6 +32,16 @@ ON DUPLICATE KEY UPDATE youtube_channel_title = sample.youtube_channel_title,
                         review_count          = sample.review_count,
                         approved_at           = sample.approved_at;
 
+-- YouTube 값은 youtube_movie_source에도 넣는다. 전환 기간에는 운영 데이터처럼 movie의 youtube 컬럼과 함께 쓴다.
+-- (movie의 youtube 컬럼을 지우는 배포에서 이 파일도 youtube_movie_source만 쓰도록 바꾼다)
+INSERT INTO youtube_movie_source (movie_id, youtube_video_id, youtube_channel_id, youtube_channel_title)
+SELECT *
+FROM (SELECT id, youtube_video_id, youtube_channel_id, youtube_channel_title
+      FROM movie
+      WHERE youtube_video_id LIKE 'local-sample-%') AS sample
+ON DUPLICATE KEY UPDATE youtube_channel_id    = sample.youtube_channel_id,
+                        youtube_channel_title = sample.youtube_channel_title;
+
 -- 장르 연결은 파일에서 빼거나 바꾼 것이 남지 않도록 샘플 영화의 연결만 지운 뒤 지금 정의대로 다시 넣는다
 DELETE
 FROM movie_genre

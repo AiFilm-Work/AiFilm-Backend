@@ -31,8 +31,9 @@ class FlywayMigrationTest {
 	private DataSource dataSource;
 
 	@ParameterizedTest
-	@ValueSource(strings = {"flyway_schema_history", "genre", "movie", "movie_genre", "home_banner_movie"})
-	@DisplayName("앱이 뜨면 Flyway가 실행되어 스키마 이력과 영화·장르·홈 배너 테이블이 생긴다")
+	@ValueSource(strings = {"flyway_schema_history", "genre", "movie", "movie_genre", "home_banner_movie",
+		"youtube_movie_source"})
+	@DisplayName("앱이 뜨면 Flyway가 실행되어 스키마 이력과 영화·장르·홈 배너·YouTube 출처 테이블이 생긴다")
 	void createsTables(String tableName) throws SQLException {
 		try (Connection connection = dataSource.getConnection();
 			ResultSet tables = connection.getMetaData()
@@ -83,6 +84,17 @@ class FlywayMigrationTest {
 			.containsExactly("screening_status", "youtube_availability_status", "approved_at");
 		assertThat(indexColumns("idx_movie_screening_availability_rating"))
 			.containsExactly("screening_status", "youtube_availability_status", "average_rating", "review_count",
+				"approved_at");
+	}
+
+	// 출처와 무관한 재생 가능 여부(availability_status)로 홈 섹션을 거르는 인덱스. 구조는 V4 인덱스와 같다
+	@Test
+	@DisplayName("홈 섹션 정렬용 인덱스가 출처와 무관한 노출 조건 컬럼으로도 만들어진다")
+	void createsHomeSectionIndexesOnAvailabilityStatus() throws SQLException {
+		assertThat(indexColumns("idx_movie_screening_availability_status_approved_at"))
+			.containsExactly("screening_status", "availability_status", "approved_at");
+		assertThat(indexColumns("idx_movie_screening_availability_status_rating"))
+			.containsExactly("screening_status", "availability_status", "average_rating", "review_count",
 				"approved_at");
 	}
 

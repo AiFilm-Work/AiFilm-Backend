@@ -17,9 +17,6 @@ class MovieTest {
 
 	private static Movie.MovieBuilder validMovie() {
 		return Movie.builder()
-			.youtubeVideoId("abc123")
-			.youtubeChannelId("channel-1")
-			.youtubeChannelTitle("AI 스튜디오")
 			.thumbnailUrl("https://example.com/neon-memory.jpg")
 			.title("네온 메모리")
 			.shortDescription("기억은 사라져도, 사랑은 남는다.")
@@ -34,10 +31,7 @@ class MovieTest {
 		Movie movie = validMovie().build();
 
 		assertThat(movie.getScreeningStatus()).isEqualTo(ScreeningStatus.ACTIVE);
-		assertThat(movie.getYoutubeAvailabilityStatus()).isEqualTo(YoutubeAvailabilityStatus.AVAILABLE);
-		assertThat(movie.getPrivacyStatus()).isEqualTo(PrivacyStatus.PUBLIC);
-		assertThat(movie.isEmbeddable()).isTrue();
-		assertThat(movie.isYoutubeDeleted()).isFalse();
+		assertThat(movie.getAvailabilityStatus()).isEqualTo(AvailabilityStatus.AVAILABLE);
 		assertThat(movie.getAverageRating()).isEqualByComparingTo(BigDecimal.ZERO);
 		assertThat(movie.getReviewCount()).isZero();
 		assertThat(movie.getTotalViewCount()).isZero();
@@ -55,9 +49,9 @@ class MovieTest {
 	@ParameterizedTest
 	@NullAndEmptySource
 	@ValueSource(strings = " ")
-	@DisplayName("YouTube 영상 ID나 제목이 비어 있으면 만들 수 없다")
+	@DisplayName("썸네일 URL이나 제목이 비어 있으면 만들 수 없다")
 	void rejectsBlankRequiredText(String blank) {
-		assertThatThrownBy(() -> validMovie().youtubeVideoId(blank).build())
+		assertThatThrownBy(() -> validMovie().thumbnailUrl(blank).build())
 			.isInstanceOf(IllegalArgumentException.class);
 		assertThatThrownBy(() -> validMovie().title(blank).build())
 			.isInstanceOf(IllegalArgumentException.class);
