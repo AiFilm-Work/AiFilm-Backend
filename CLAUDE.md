@@ -90,12 +90,20 @@ Entity / Repository:
 - `created_at`, `updated_at`은 엔티티의 `@PrePersist`, `@PreUpdate`에서 채운다.
 - `TEXT` 컬럼은 `@Column(columnDefinition = "TEXT")`를 붙인다. 없으면 `ddl-auto=validate`가 `VARCHAR`를 기대해 실패한다.
 
+영화와 영상 출처:
+
+- `Movie`는 출처와 무관한 공통 정보(제목, 썸네일, 러닝타임, 노출 상태, 재생 가능 여부, 집계값)만 갖는다. 영상 출처는 출처별 엔티티(`YoutubeMovieSource`, 이후 `UploadedMovieSource`)가 따로 가진다. 한 영화에 출처가 여러 종류 붙을 수 있어 상속이 아니라 조합으로 매핑하고, `movie`에 출처 종류 컬럼을 두지 않는다.
+- 출처 테이블은 `movie`와 PK를 공유한다(`movie_id = movie.id`, 출처 종류마다 영화당 최대 하나). 출처 엔티티는 `Movie` 연관관계 없이 `movieId`만 가지며, 영화와의 무결성은 DB FK가 지킨다.
+- PK를 직접 넣는 엔티티(출처 엔티티)는 Spring Data `save()`로 저장하지 않는다. ID가 채워져 있으면 `merge`로 동작해 같은 PK의 기존 행을 오류 없이 덮어쓴다. `<엔티티>RepositoryImpl`에서 `EntityManager.persist`로 새 행만 넣고, 중복이면 PK 위반으로 실패하게 한다.
+- 영화와 출처는 한 트랜잭션에서 함께 저장한다. 영화의 재생 가능 여부(`availability_status`)는 출처들의 상태를 종합해 서비스가 갱신한다.
+
 조회 모델:
 
 - 화면에 보여주는 조회는 엔티티를 꺼내 조립하지 않는다. 화면에 필요한 값만 담은 조회 모델(record)과 조회 메서드를 `domain`에 두고, `infra`에서 JPQL 생성자 표현식(`select new ...`)이나 네이티브 쿼리로 필요한 컬럼만 가져온다. (예: `MovieCard`, `VisibleHomeBanner`, `MovieGenre`) 엔티티를 넘기면 지연 로딩 때문에 항목마다 쿼리가 늘어나거나(N+1), 트랜잭션 밖에서 `LazyInitializationException`이 난다.
 - 목록 항목의 연관 데이터(예: 영화별 장르)는 항목마다 조회하지 않는다. ID를 모아 `IN` 한 번으로 가져와 메모리에서 나눈다. 넘길 ID가 없으면 쿼리 없이 빈 목록을 반환한다. (`IN ()`은 SQL 문법 오류)
 - 개수 제한은 Spring Data의 `Limit`으로 넘긴다(SQL `LIMIT`이 된다). 더보기 여부는 한 개 더 조회해 판단하고 `COUNT` 쿼리를 따로 두지 않는다.
-- 사용자에게 보여주는 영화 조회는 노출 조건(`screening_status = ACTIVE`, `youtube_availability_status = AVAILABLE`)을 쿼리에서 건다. 조건 값은 리포지토리 구현에서 넘기고, domain 메서드 이름에는 노출 가능한 영화만 조회한다는 뜻을 드러낸다. (예: `findLatestScreenable`)
+- 사용자에게 보여주는 영화 조회는 노출 조건(`screening_status = ACTIVE`, `availability_status = AVAILABLE`)을 쿼리에서 건다. 노출 여부는 출처 테이블이 아니라 `movie`의 두 컬럼으로만 판단한다. 조건 값은 리포지토리 구현에서 넘기고, domain 메서드 이름에는 노출 가능한 영화만 조회한다는 뜻을 드러낸다. (예: `findLatestScreenable`)
+- 목록·홈 섹션·랭킹은 `movie`만 읽고 출처 테이블을 조인하지 않는다. 출처 값이 필요한 조회(상세, 배너)만 `movie` 기준으로 출처 테이블을 LEFT JOIN한다. INNER JOIN을 쓰면 그 출처가 없는 영화가 결과에서 빠진다.
 - 여러 쿼리로 한 화면을 만드는 서비스는 `@Transactional(readOnly = true)` 하나로 묶어 같은 시점의 데이터를 읽게 한다.
 - 단건 조회에서 "없음"과 "볼 수 없음"을 다르게 응답해야 하면(예: 영화 상세) 노출 조건을 쿼리에 걸지 않고 노출 상태를 함께 조회해, domain 조회 모델의 판단 메서드(예: `MovieDetail.isScreenable()`)로 구분한다. 목록 조회는 지금처럼 쿼리에서 거른다.
 
@@ -202,10 +210,10 @@ Migration:
 - main에 머지된 migration은 CD 배포 때 운영 RDS에 적용되므로 수정하지 않는다. 스키마 변경은 새 migration 파일로 추가한다.
 - 제약과 인덱스에는 이름을 붙인다: `pk_<테이블>`, `uk_<테이블>_<컬럼>`, `fk_<테이블>_<참조 테이블>`, `idx_<테이블>_<컬럼>`, `ck_<테이블>_<컬럼>`. 컬럼이 여러 개면 컬럼 이름을 줄여 이어 붙이고 64자를 넘지 않게 한다. (예: `idx_movie_screening_availability_approved_at`)
 - 테이블은 `ENGINE = InnoDB`, `utf8mb4`, `utf8mb4_unicode_ci`를 명시한다.
-- PK는 `BIGINT AUTO_INCREMENT`이고 엔티티는 `GenerationType.IDENTITY`를 쓴다.
-- 같은 데이터가 두 번 들어가면 안 되는 컬럼(예: `movie.youtube_video_id`)은 애플리케이션 검사와 별개로 DB UNIQUE로 막는다.
+- PK는 `BIGINT AUTO_INCREMENT`이고 엔티티는 `GenerationType.IDENTITY`를 쓴다. `movie`와 PK를 공유하는 출처 테이블은 예외다(AUTO_INCREMENT 없음, 엔티티에 `@GeneratedValue` 없음).
+- 같은 데이터가 두 번 들어가면 안 되는 컬럼(예: `youtube_movie_source.youtube_video_id`)은 애플리케이션 검사와 별개로 DB UNIQUE로 막는다.
 - 기준 데이터(예: 장르)는 클라이언트가 ID로 참조하므로 migration에서 ID를 지정해 넣는다. 추가할 때는 기존 파일을 고치지 않고 새 migration으로 다음 ID를 넣는다.
-- 운영 데이터는 migration에 넣지 않는다(ID를 지정하는 기준 데이터는 예외). 관리자 API가 생기기 전에는 운영 데이터를 Session Manager에서 SQL로 넣으므로, 엔티티 검증과 같은 규칙을 DB의 `CHECK`, `UNIQUE`, `FK`로도 걸고 리포지토리 테스트에서 SQL로 직접 넣어 막히는지 확인한다.
+- 운영 데이터는 migration에 넣지 않는다(ID를 지정하는 기준 데이터는 예외). 관리자 API가 생기기 전에는 운영 데이터를 Session Manager에서 SQL로 넣으므로, 엔티티 검증과 같은 규칙을 DB의 `CHECK`, `UNIQUE`, `FK`로도 건다. 리포지토리 테스트는 비즈니스 규칙인 제약(예: 같은 영화에 출처 중복, 같은 영상의 중복 등록)을 확인하고, 제약마다 하나씩 테스트를 두지는 않는다.
 - 한 migration 파일에는 하나의 목적만 담는다. MySQL DDL은 트랜잭션으로 묶이지 않아서, 중간에 실패하면 일부만 적용된 채 `flyway_schema_history`에 실패 기록이 남고 이전 버전 앱도 뜨지 못한다. 이때는 남은 변경을 손으로 정리하고 `flyway repair`로 기록을 지운다.
 
 인덱스:
@@ -225,6 +233,7 @@ Migration:
   1. 새 컬럼을 추가하고 앱이 두 컬럼에 모두 쓰게 한다.
   2. 기존 데이터를 옮기고 앱이 새 컬럼만 읽게 한다.
   3. 롤백할 일이 없다고 판단한 다음 배포에서 기존 컬럼을 지운다.
+- 영화 출처 분리(#39)의 전환 기간: `movie`의 옛 YouTube 컬럼(`youtube_video_id` 등)과 `youtube_availability_status`를 지우기 전까지, 운영 SQL로 영화를 넣거나 상태를 바꿀 때 `movie`의 옛 YouTube 컬럼과 `youtube_movie_source`를, `youtube_availability_status`와 `availability_status`를 함께 쓴다. 롤백된 이전 앱이 옛 컬럼을 읽기 때문이다. 앱 코드는 `youtube_movie_source`와 `availability_status`만 읽고 쓴다.
 
 로컬 샘플 데이터:
 
@@ -329,6 +338,14 @@ docker compose up -d                         # MySQL만 실행 (IntelliJ로 앱�
 - 외부 의존성만 필요한 범위에서 mock 처리한다.
 - 테스트를 통과시키기 위해 assertion을 약화하거나 테스트를 삭제하지 않는다.
 - 외부 운영 API를 실제로 호출하는 테스트는 기본 테스트에 포함하지 않는다.
+- 테스트는 판단이 있는 코드(분기, 경계값, 여러 방법 중 고른 구현, 틀려도 조용히 넘어가는 동작)에 쓴다. getter, Lombok이 만든 코드, Spring Data 기본 메서드, DB가 당연히 보장하는 동작은 따로 테스트하지 않는다.
+
+테스트 작성 형식:
+
+- 테스트 메서드 이름은 확인하는 규칙을 한글 문장으로 쓰고(단어는 `_`로 잇는다), `@DisplayName`은 쓰지 않는다. 성공 경우는 `~할_수_있다`, 실패 경우는 `~하면_실패한다`처럼 쓴다. 고유명사는 `YouTube`, `ID`로 표기한다. (예: `이미_YouTube_출처가_있는_영화에_다시_저장하면_덮어쓰지_않고_실패한다`)
+- 본문은 `// given`, `// when`, `// then`으로 나눈다. 실행과 검증이 한 문장이면(`assertThatThrownBy` 등) `// when & then`으로 쓰고, 준비할 것이 없으면 `// given`을 생략한다.
+- 테스트 데이터는 실제 값처럼 만든다(영상 ID, URL 등은 영문 소문자와 하이픈). 비즈니스 판단에 쓰지 않는 시각도 `LocalDateTime.now()` 대신 고정값을 쓴다.
+- 아직 이 형식이 아닌 기존 테스트는 고칠 때 함께 맞춘다.
 
 Worker에서는 특히 다음을 검증한다.
 
