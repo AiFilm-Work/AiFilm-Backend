@@ -193,6 +193,16 @@ Swagger UI 정적 파일(`api/src/main/resources/static/swagger-ui/`):
 - 주석은 짧은 일반 주석(`//`)으로 "무엇을, 왜"의 핵심만 적는다. Javadoc(`/** */`)과 HTML 태그는 쓰지 않는다.
 - 자세한 배경과 결정 이유는 커밋 본문에 남긴다.
 
+코드 스타일:
+
+- 기준은 루트의 `.editorconfig`다. 들여쓰기는 스페이스 4칸, 이어지는 줄은 8칸, 한 줄은 120자다.
+- import는 static import 전부, 빈 줄 하나, 나머지 import 전부 순서로 둔다. 와일드카드 import는 쓰지 않는다.
+- 여러 줄로 나눈 매개변수, try-with-resources, record 구성요소, `for` 조건을 괄호 위치에 맞춰 정렬하지 않는다.
+- IntelliJ는 EditorConfig 지원을 켜 둔다. 상태 표시줄에 `4개 공백`이 보이면 `.editorconfig`를 읽고 있는 것이다.
+- 재정렬은 코드 → 코드 서식 다시 지정으로 하고, "import 문 최적화"는 켜고 "항목 재정렬"은 끈다. 항목 재정렬은 멤버 순서를 바꾼다.
+- 포맷만 바꾸는 변경은 기능 변경과 같은 커밋에 섞지 않는다. 별도 `style:` 커밋으로 만들고, 그 커밋의 전체 해시를 `.git-blame-ignore-revs`에 추가한다. GitHub blame은 이 파일을 자동으로 읽고, 로컬은 `git config blame.ignoreRevsFile .git-blame-ignore-revs`를 한 번 설정한다.
+- migration SQL(`db/migration`, `db/sample`)과 swagger-ui dist는 재정렬하지 않는다. 운영에 적용된 migration은 공백만 바뀌어도 Flyway 체크섬 검증에 실패한다. `.editorconfig`도 이 파일들에는 공백 규칙을 적용하지 않는다.
+
 ## Database
 
 - MySQL을 사용한다.
@@ -418,6 +428,10 @@ Commit:
 
 feat(movie): 영화 검색 기능 구현 (#12)
 fix(cache): 랭킹 캐시 만료 처리 수정 (#34)
+
+Merge:
+
+- PR은 merge commit(Create a merge commit)으로 머지한다. squash·rebase는 커밋 해시를 바꿔 `.git-blame-ignore-revs`에 적은 커밋이 main에 남지 않는다.
 
 ## Working Rules
 코드를 수정하기 전에 기존 구현과 패턴을 먼저 확인한다.
