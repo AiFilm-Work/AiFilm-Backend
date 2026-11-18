@@ -7,9 +7,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 class TestPingController {
 
-	@GetMapping("/test/ping")
-	public String ping() {
-		return "pong";
-	}
+    @GetMapping("/test/ping")
+    public String ping() {
+        return "pong";
+    }
 
 }

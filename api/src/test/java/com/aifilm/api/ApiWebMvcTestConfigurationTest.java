@@ -2,10 +2,8 @@ package com.aifilm.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import javax.sql.DataSource;
-
 import jakarta.persistence.EntityManagerFactory;
-
+import javax.sql.DataSource;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,24 +17,24 @@ import org.springframework.test.web.servlet.MockMvc;
 @WebMvcTest(useDefaultFilters = false)
 class ApiWebMvcTestConfigurationTest {
 
-	@Autowired
-	private ApplicationContext context;
+    @Autowired
+    private ApplicationContext context;
 
-	@Autowired
-	private MockMvc mockMvc;
+    @Autowired
+    private MockMvc mockMvc;
 
-	@Test
-	@DisplayName("테스트 전용 설정으로 웹 계층 슬라이스가 뜨고 MockMvc를 사용할 수 있다")
-	void webMvcSliceLoadsWithTestConfiguration() {
-		assertThat(context.getBeanNamesForType(ApiTestApplication.class)).isNotEmpty();
-		assertThat(mockMvc).isNotNull();
-	}
+    @Test
+    @DisplayName("테스트 전용 설정으로 웹 계층 슬라이스가 뜨고 MockMvc를 사용할 수 있다")
+    void webMvcSliceLoadsWithTestConfiguration() {
+        assertThat(context.getBeanNamesForType(ApiTestApplication.class)).isNotEmpty();
+        assertThat(mockMvc).isNotNull();
+    }
 
-	@Test
-	@DisplayName("DB 관련 빈(DataSource, JPA) 없이 뜬다")
-	void webMvcSliceLoadsWithoutDatabase() {
-		assertThat(context.getBeanNamesForType(DataSource.class)).isEmpty();
-		assertThat(context.getBeanNamesForType(EntityManagerFactory.class)).isEmpty();
-	}
+    @Test
+    @DisplayName("DB 관련 빈(DataSource, JPA) 없이 뜬다")
+    void webMvcSliceLoadsWithoutDatabase() {
+        assertThat(context.getBeanNamesForType(DataSource.class)).isEmpty();
+        assertThat(context.getBeanNamesForType(EntityManagerFactory.class)).isEmpty();
+    }
 
 }

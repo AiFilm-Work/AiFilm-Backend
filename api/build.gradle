@@ -1,65 +1,65 @@
 // api: 사용자/관리자 REST API 라이브러리 모듈. main 클래스 없이 app 모듈에서 실행되며, worker에는 절대 의존하지 않는다.
 plugins {
-	id 'com.epages.restdocs-api-spec'
+    id 'com.epages.restdocs-api-spec'
 }
 
 bootJar {
-	enabled = false
+    enabled = false
 }
 
 jar {
-	enabled = true
-	archiveClassifier = ''
+    enabled = true
+    archiveClassifier = ''
 }
 
 dependencies {
-	implementation project(':common')
-	implementation project(':domain')
-	implementation project(':infra')
+    implementation project(':common')
+    implementation project(':domain')
+    implementation project(':infra')
 
-	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
-	implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
 
-	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
-	testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
-	testImplementation 'org.springframework.boot:spring-boot-starter-restdocs'
-	testImplementation 'org.springframework.restdocs:spring-restdocs-mockmvc'
-	testImplementation 'com.epages:restdocs-api-spec-mockmvc:0.20.1'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-restdocs'
+    testImplementation 'org.springframework.restdocs:spring-restdocs-mockmvc'
+    testImplementation 'com.epages:restdocs-api-spec-mockmvc:0.20.1'
 }
 
 openapi3 {
-	title = 'AI FILM API'
-	description = 'AI FILM 서비스의 REST API 문서'
-	version = project.version.toString()
-	format = 'yaml'
-	// 상대 경로라 Swagger UI가 스펙을 받은 서버(로컬, 배포 서버)로 요청을 보낸다.
-	servers = [
-		{ url = '/' }
-	]
+    title = 'AI FILM API'
+    description = 'AI FILM 서비스의 REST API 문서'
+    version = project.version.toString()
+    format = 'yaml'
+    // 상대 경로라 Swagger UI가 스펙을 받은 서버(로컬, 배포 서버)로 요청을 보낸다.
+    servers = [
+            { url = '/' }
+    ]
 }
 
 tasks.named('test') {
-	def snippetsDir = layout.buildDirectory.dir('generated-snippets')
-	outputs.dir(snippetsDir)
-	// 지우거나 이름을 바꾼 테스트의 스니펫이 스펙에 남지 않도록 매번 비우고 시작한다.
-	doFirst {
-		snippetsDir.get().asFile.deleteDir()
-	}
+    def snippetsDir = layout.buildDirectory.dir('generated-snippets')
+    outputs.dir(snippetsDir)
+    // 지우거나 이름을 바꾼 테스트의 스니펫이 스펙에 남지 않도록 매번 비우고 시작한다.
+    doFirst {
+        snippetsDir.get().asFile.deleteDir()
+    }
 }
 
 // src가 아닌 빌드 산출물 위치에 복사해야 jar에 이번 빌드의 스펙이 들어가고 git에도 섞이지 않는다.
 tasks.register('copyOpenApiSpec', Copy) {
-	dependsOn 'openapi3'
-	from layout.buildDirectory.file('api-spec/openapi3.yaml')
-	into layout.buildDirectory.dir('resources/main/static/swagger-ui')
+    dependsOn 'openapi3'
+    from layout.buildDirectory.file('api-spec/openapi3.yaml')
+    into layout.buildDirectory.dir('resources/main/static/swagger-ui')
 }
 
 tasks.named('jar') {
-	dependsOn 'copyOpenApiSpec'
+    dependsOn 'copyOpenApiSpec'
 }
 
 // copyOpenApiSpec이 build/resources/main에 쓰는 파일을 resolveMainClassName도 읽으므로 실행 순서를 명시한다.
 // dependsOn이 아니라 순서만 정해, api만 빌드할 때 문서 생성 태스크가 끼어들지 않게 한다.
 tasks.named('resolveMainClassName') {
-	mustRunAfter 'copyOpenApiSpec'
+    mustRunAfter 'copyOpenApiSpec'
 }

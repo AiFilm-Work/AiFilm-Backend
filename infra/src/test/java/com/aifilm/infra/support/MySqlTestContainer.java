@@ -7,14 +7,14 @@ import org.testcontainers.mysql.MySQLContainer;
 // static 필드라 JVM에 하나만 만들어져 여러 테스트 클래스가 같은 컨테이너를 쓴다.
 public final class MySqlTestContainer {
 
-	@ServiceConnection
-	static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4")
-		.withCommand("--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci")
-		.withEnv("TZ", "Asia/Seoul")
-		.withUrlParam("serverTimezone", "Asia/Seoul")
-		.withUrlParam("characterEncoding", "UTF-8");
+    @ServiceConnection
+    static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4")
+            .withCommand("--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci")
+            .withEnv("TZ", "Asia/Seoul")
+            .withUrlParam("serverTimezone", "Asia/Seoul")
+            .withUrlParam("characterEncoding", "UTF-8");
 
-	private MySqlTestContainer() {
-	}
+    private MySqlTestContainer() {
+    }
 
 }

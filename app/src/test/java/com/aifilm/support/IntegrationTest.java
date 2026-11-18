@@ -4,7 +4,6 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 import org.springframework.core.annotation.AliasFor;
@@ -18,8 +17,8 @@ import org.springframework.core.annotation.AliasFor;
 @ImportTestcontainers(MySqlTestContainer.class)
 public @interface IntegrationTest {
 
-	// 기본은 MockMvc로 확인하는 MOCK 환경이다. Tomcat 밸브처럼 실제 서버에서만 동작하는 기능은 RANDOM_PORT로 띄운다.
-	@AliasFor(annotation = SpringBootTest.class, attribute = "webEnvironment")
-	SpringBootTest.WebEnvironment webEnvironment() default SpringBootTest.WebEnvironment.MOCK;
+    // 기본은 MockMvc로 확인하는 MOCK 환경이다. Tomcat 밸브처럼 실제 서버에서만 동작하는 기능은 RANDOM_PORT로 띄운다.
+    @AliasFor(annotation = SpringBootTest.class, attribute = "webEnvironment")
+    SpringBootTest.WebEnvironment webEnvironment() default SpringBootTest.WebEnvironment.MOCK;
 
 }

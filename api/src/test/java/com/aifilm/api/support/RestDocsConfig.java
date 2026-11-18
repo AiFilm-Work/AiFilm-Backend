@@ -10,11 +10,11 @@ import org.springframework.context.annotation.Bean;
 @TestConfiguration(proxyBeanMethods = false)
 class RestDocsConfig {
 
-	@Bean
-	RestDocsMockMvcConfigurationCustomizer prettyPrintCustomizer() {
-		return configurer -> configurer.operationPreprocessors()
-			.withRequestDefaults(prettyPrint())
-			.withResponseDefaults(prettyPrint());
-	}
+    @Bean
+    RestDocsMockMvcConfigurationCustomizer prettyPrintCustomizer() {
+        return configurer -> configurer.operationPreprocessors()
+                .withRequestDefaults(prettyPrint())
+                .withResponseDefaults(prettyPrint());
+    }
 
 }

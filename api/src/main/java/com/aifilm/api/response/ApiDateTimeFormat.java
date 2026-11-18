@@ -5,9 +5,9 @@ package com.aifilm.api.response;
 // 응답 DTO의 LocalDateTime 필드에 @JsonFormat(pattern = ApiDateTimeFormat.PATTERN)으로 붙인다.
 public final class ApiDateTimeFormat {
 
-	public static final String PATTERN = "yyyy-MM-dd'T'HH:mm:ss";
+    public static final String PATTERN = "yyyy-MM-dd'T'HH:mm:ss";
 
-	private ApiDateTimeFormat() {
-	}
+    private ApiDateTimeFormat() {
+    }
 
 }

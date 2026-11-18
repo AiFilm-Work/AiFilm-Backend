@@ -8,15 +8,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 class CorsTestController {
 
-	@GetMapping("/test/cors")
-	public String get() {
-		return "ok";
-	}
+    @GetMapping("/test/cors")
+    public String get() {
+        return "ok";
+    }
 
-	// 사전 요청(preflight)은 Access-Control-Request-Method에 맞는 핸들러가 있어야 처리된다
-	@PostMapping("/test/cors")
-	public String post() {
-		return "ok";
-	}
+    // 사전 요청(preflight)은 Access-Control-Request-Method에 맞는 핸들러가 있어야 처리된다
+    @PostMapping("/test/cors")
+    public String post() {
+        return "ok";
+    }
 
 }

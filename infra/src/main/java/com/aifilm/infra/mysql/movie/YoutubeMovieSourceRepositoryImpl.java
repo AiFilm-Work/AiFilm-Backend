@@ -1,15 +1,11 @@
 package com.aifilm.infra.mysql.movie;
 
-import java.util.Optional;
-
-import jakarta.persistence.EntityManager;
-
-import lombok.RequiredArgsConstructor;
-
-import org.springframework.stereotype.Repository;
-
 import com.aifilm.domain.movie.YoutubeMovieSource;
 import com.aifilm.domain.movie.YoutubeMovieSourceRepository;
+import jakarta.persistence.EntityManager;
+import java.util.Optional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Repository;
 
 // domain의 YoutubeMovieSourceRepository를 EntityManager로 구현한다.
 // movieId를 직접 넣는 엔티티라 Spring Data의 save()는 새 엔티티로 보지 않고 merge한다. merge는 같은 movieId 행이 있으면
@@ -18,17 +14,17 @@ import com.aifilm.domain.movie.YoutubeMovieSourceRepository;
 @RequiredArgsConstructor
 public class YoutubeMovieSourceRepositoryImpl implements YoutubeMovieSourceRepository {
 
-	private final EntityManager entityManager;
+    private final EntityManager entityManager;
 
-	@Override
-	public YoutubeMovieSource save(YoutubeMovieSource youtubeMovieSource) {
-		entityManager.persist(youtubeMovieSource);
-		return youtubeMovieSource;
-	}
+    @Override
+    public YoutubeMovieSource save(YoutubeMovieSource youtubeMovieSource) {
+        entityManager.persist(youtubeMovieSource);
+        return youtubeMovieSource;
+    }
 
-	@Override
-	public Optional<YoutubeMovieSource> findByMovieId(Long movieId) {
-		return Optional.ofNullable(entityManager.find(YoutubeMovieSource.class, movieId));
-	}
+    @Override
+    public Optional<YoutubeMovieSource> findByMovieId(Long movieId) {
+        return Optional.ofNullable(entityManager.find(YoutubeMovieSource.class, movieId));
+    }
 
 }
