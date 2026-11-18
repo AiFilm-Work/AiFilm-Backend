@@ -4,7 +4,6 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-
 import org.springframework.boot.restdocs.test.autoconfigure.AutoConfigureRestDocs;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -20,8 +19,8 @@ import org.springframework.core.annotation.AliasFor;
 @Import(RestDocsConfig.class)
 public @interface ControllerTest {
 
-	// @AliasFor가 없으면 값을 넘겨도 무시되고 모든 컨트롤러가 슬라이스에 올라간다.
-	@AliasFor(annotation = WebMvcTest.class, attribute = "controllers")
-	Class<?>[] controllers() default {};
+    // @AliasFor가 없으면 값을 넘겨도 무시되고 모든 컨트롤러가 슬라이스에 올라간다.
+    @AliasFor(annotation = WebMvcTest.class, attribute = "controllers")
+    Class<?>[] controllers() default {};
 
 }

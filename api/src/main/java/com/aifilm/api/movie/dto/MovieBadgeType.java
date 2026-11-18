@@ -8,8 +8,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum MovieBadgeType {
 
-	NEW("New");
+    NEW("New");
 
-	private final String label;
+    private final String label;
 
 }

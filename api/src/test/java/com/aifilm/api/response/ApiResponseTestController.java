@@ -1,7 +1,6 @@
 package com.aifilm.api.response;
 
 import java.util.List;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -10,21 +9,21 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 class ApiResponseTestController {
 
-	@GetMapping("/test/api-response/success")
-	public ApiResponse<String> success() {
-		return ApiResponse.success("aifilm");
-	}
+    @GetMapping("/test/api-response/success")
+    public ApiResponse<String> success() {
+        return ApiResponse.success("aifilm");
+    }
 
-	@GetMapping("/test/api-response/fail")
-	public ResponseEntity<ApiResponse<Void>> fail() {
-		return ResponseEntity.status(TestErrorCode.NOT_FOUND.getStatus())
-			.body(ApiResponse.fail(TestErrorCode.NOT_FOUND));
-	}
+    @GetMapping("/test/api-response/fail")
+    public ResponseEntity<ApiResponse<Void>> fail() {
+        return ResponseEntity.status(TestErrorCode.NOT_FOUND.getStatus())
+                .body(ApiResponse.fail(TestErrorCode.NOT_FOUND));
+    }
 
-	@GetMapping("/test/api-response/fail-with-errors")
-	public ResponseEntity<ApiResponse<Void>> failWithErrors() {
-		return ResponseEntity.status(TestErrorCode.INVALID.getStatus())
-			.body(ApiResponse.fail(TestErrorCode.INVALID, List.of(new FieldErrorResponse("name", "필수 값입니다."))));
-	}
+    @GetMapping("/test/api-response/fail-with-errors")
+    public ResponseEntity<ApiResponse<Void>> failWithErrors() {
+        return ResponseEntity.status(TestErrorCode.INVALID.getStatus())
+                .body(ApiResponse.fail(TestErrorCode.INVALID, List.of(new FieldErrorResponse("name", "필수 값입니다."))));
+    }
 
 }

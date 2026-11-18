@@ -8,14 +8,14 @@ import org.testcontainers.mysql.MySQLContainer;
 // 이미지·문자셋·타임존은 docker-compose.yml과 application.yml의 로컬 설정에 맞춘다.
 public final class MySqlTestContainer {
 
-	@ServiceConnection
-	static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4")
-		.withCommand("--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci")
-		.withEnv("TZ", "Asia/Seoul")
-		.withUrlParam("serverTimezone", "Asia/Seoul")
-		.withUrlParam("characterEncoding", "UTF-8");
+    @ServiceConnection
+    static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4")
+            .withCommand("--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci")
+            .withEnv("TZ", "Asia/Seoul")
+            .withUrlParam("serverTimezone", "Asia/Seoul")
+            .withUrlParam("characterEncoding", "UTF-8");
 
-	private MySqlTestContainer() {
-	}
+    private MySqlTestContainer() {
+    }
 
 }

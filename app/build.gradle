@@ -1,26 +1,26 @@
 // app: api와 worker를 조립해 하나의 JVM으로 실행하는 유일한 실행 모듈. main 클래스와 실행 설정만 둔다.
 bootJar {
-	enabled = true
-	// Dockerfile과 배포 단계가 경로를 고정해서 쓸 수 있게 버전과 상관없이 같은 이름으로 만든다.
-	archiveFileName = 'aifilm-app.jar'
+    enabled = true
+    // Dockerfile과 배포 단계가 경로를 고정해서 쓸 수 있게 버전과 상관없이 같은 이름으로 만든다.
+    archiveFileName = 'aifilm-app.jar'
 }
 
 jar {
-	enabled = false
+    enabled = false
 }
 
 dependencies {
-	implementation project(':api')
-	implementation project(':worker')
+    implementation project(':api')
+    implementation project(':worker')
 
-	implementation 'org.springframework.boot:spring-boot-starter'
-	// 헬스체크(/actuator/health)용. 실행 모드와 상관없이 쓰도록 api가 아니라 app에 둔다.
-	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter'
+    // 헬스체크(/actuator/health)용. 실행 모드와 상관없이 쓰도록 api가 아니라 app에 둔다.
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	// Actuator 엔드포인트를 MockMvc로 호출해 확인한다.
-	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
-	// app 통합 테스트가 MySQL 컨테이너를 직접 띄운다. 버전은 Spring Boot BOM이 관리한다 (Testcontainers 2.x).
-	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
-	testImplementation 'org.testcontainers:testcontainers-mysql'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    // Actuator 엔드포인트를 MockMvc로 호출해 확인한다.
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    // app 통합 테스트가 MySQL 컨테이너를 직접 띄운다. 버전은 Spring Boot BOM이 관리한다 (Testcontainers 2.x).
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'org.testcontainers:testcontainers-mysql'
 }

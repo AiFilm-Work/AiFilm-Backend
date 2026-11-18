@@ -9,13 +9,13 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class GenreTest {
 
-	@ParameterizedTest
-	@NullAndEmptySource
-	@ValueSource(strings = " ")
-	@DisplayName("이름이 비어 있으면 장르를 만들 수 없다")
-	void rejectsBlankName(String blank) {
-		assertThatThrownBy(() -> new Genre(blank, null))
-			.isInstanceOf(IllegalArgumentException.class);
-	}
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = " ")
+    @DisplayName("이름이 비어 있으면 장르를 만들 수 없다")
+    void rejectsBlankName(String blank) {
+        assertThatThrownBy(() -> new Genre(blank, null))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 
 }

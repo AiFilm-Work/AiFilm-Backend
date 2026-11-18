@@ -1,19 +1,19 @@
 // worker: 백그라운드 작업 라이브러리 모듈. main 클래스 없이 app 모듈에서 실행되며, api에는 절대 의존하지 않는다.
 bootJar {
-	enabled = false
+    enabled = false
 }
 
 jar {
-	enabled = true
-	archiveClassifier = ''
+    enabled = true
+    archiveClassifier = ''
 }
 
 dependencies {
-	implementation project(':common')
-	implementation project(':domain')
-	implementation project(':infra')
+    implementation project(':common')
+    implementation project(':domain')
+    implementation project(':infra')
 
-	implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter'
 
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
